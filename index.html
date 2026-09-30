@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECHO LABYRINTH — Лабиринт Разума</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="ui">
+  <div class="bar-container" id="healthBar"><span class="bar-label">ЗДОРОВЬЕ</span><div class="bar-fill" id="healthFill"></div></div>
+  <div class="bar-container" id="flashlightBar"><span class="bar-label">ФОНАРИК</span><div class="bar-fill" id="flashlightFill"></div></div>
+  <canvas id="minimap" width="140" height="140"></canvas>
+  <div id="layerIndicator">СЛОЙ: РЕАЛЬНОСТЬ</div>
+  <div id="stats">
+    <div id="echoCount">ЭХО: 0</div>
+    <div id="attemptCount">ПОПЫТКА: 1</div>
+  </div>
+  <div id="inventory">
+    <div class="slot" id="slot0"></div>
+    <div class="slot" id="slot1"></div>
+    <div class="slot" id="slot2"></div>
+  </div>
+  <div id="crosshair"><div class="dot"></div></div>
+  <div id="interactHint">[E] ВЗАИМОДЕЙСТВОВАТЬ</div>
+  <div id="lookModeHint">РЕЖИМ ОБЗОРА: двигайте мышь для поворота камеры</div>
+  <div id="message"></div>
+  <div id="damageOverlay"></div>
+  <div id="companion-indicator">🔥 Спутник рядом</div>
+</div>
+
+<div id="lockOverlay">
+  <h2>КЛИКНИТЕ ДЛЯ ПРОДОЛЖЕНИЯ</h2>
+  <p>курсор зафиксирован в центре экрана</p>
+</div>
+
+<div id="overlay">
+  <div class="screen" id="startScreen">
+    <h1>ECHO LABYRINTH</h1>
+    <h2>Лабиринт Разума</h2>
+    <p>Вы попали в аварию. Мир погас. Теперь вы — лишь сознание, блуждающее по лабиринтам собственного подсознания.</p>
+    <div class="controls-info">
+      <span>WASD</span> — движение &nbsp; <span>МЫШЬ</span> — обзор<br>
+      <span>F</span> — фонарик &nbsp; <span>1/2/3</span> — смена слоя<br>
+      <span>E</span> — взаимодействие &nbsp; <span>SPACE</span> — бросить камень<br>
+      <span>SHIFT</span> — бег &nbsp; <span>ESC</span> — пауза
+    </div>
+    <button class="btn" id="startBtn">Войти в лабиринт</button>
+    <button class="btn" id="settingsBtn">Настройки</button>
+  </div>
+
+  <div class="screen hidden" id="settingsScreen">
+    <h1 style="font-size:32px">НАСТРОЙКИ</h1>
+    <div class="settings-group">
+      <h3>УПРАВЛЕНИЕ</h3>
+      <div class="setting-row">
+        <label>Чувствительность мыши</label>
+        <input type="range" id="setSensitivity" min="1" max="20" step="1">
+        <span class="value" id="valSensitivity">5</span>
+      </div>
+      <div class="setting-row">
+        <label>Инвертировать ось Y</label>
+        <input type="checkbox" id="setInvertY">
+      </div>
+      <div class="setting-row">
+        <label>Качество графики</label>
+        <select id="setQuality">
+          <option value="low">Низкое</option>
+          <option value="medium" selected>Среднее</option>
+          <option value="high">Высокое</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-group">
+      <h3>КАМЕРА</h3>
+      <div class="setting-row">
+        <label>Поле зрения (FOV)</label>
+        <input type="range" id="setFOV" min="60" max="110" step="1">
+        <span class="value" id="valFOV">75</span>
+      </div>
+      <div class="setting-row">
+        <label>Покачивание камеры</label>
+        <input type="range" id="setHeadBob" min="0" max="100" step="1">
+        <span class="value" id="valHeadBob">50</span>
+      </div>
+    </div>
+    <div class="settings-group">
+      <h3>ЗВУК</h3>
+      <div class="setting-row">
+        <label>Общая громкость</label>
+        <input type="range" id="setVolume" min="0" max="100" step="1">
+        <span class="value" id="valVolume">70</span>
+      </div>
+    </div>
+    <button class="btn" id="backBtn">Назад</button>
+  </div>
+
+  <div class="screen hidden" id="pauseScreen">
+    <h1 style="font-size:32px">ПАУЗА</h1>
+    <button class="btn" id="resumeBtn">Продолжить</button>
+    <button class="btn" id="pauseSettingsBtn">Настройки</button>
+    <button class="btn danger" id="quitBtn">Выйти в меню</button>
+  </div>
+
+  <div class="screen hidden" id="deathScreen">
+    <h1 style="background: linear-gradient(135deg, #ff0044, #ff4488); -webkit-background-clip: text; background-clip: text;">СОЗНАНИЕ РАССЫПАЕТСЯ</h1>
+    <p>Ваше эхо записано в лабиринт.<br>Оно повторит ваш путь...</p>
+    <p id="deathEchoInfo" style="color:#88ccff"></p>
+    <button class="btn" id="retryBtn">Попробовать снова</button>
+  </div>
+
+  <div class="screen hidden" id="choiceScreen">
+    <h2 style="color:#ccaaff">ЯДРО ВОСПОМИНАНИЯ</h2>
+    <div class="memory-text" id="memoryText"></div>
+    <p>Что вы выберете?</p>
+    <button class="btn warm" id="forgiveBtn">Простить</button>
+    <button class="btn danger" id="resentBtn">Затаить обиду</button>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <h1>ПРОБУЖДЕНИЕ</h1>
+    <p id="winText"></p>
+    <p id="winStats" style="color:#888"></p>
+    <button class="btn" id="restartBtn">Начать заново</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
