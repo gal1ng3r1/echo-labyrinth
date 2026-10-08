@@ -1,6 +1,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #fff; user-select: none; }
 canvas { display: block; }
+#gameCanvas { position: fixed; inset: 0; z-index: 0; cursor: crosshair; touch-action: none; }
+#gameCanvas.camera-dragging { cursor: grabbing; }
 
 #ui { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10; }
 
@@ -13,8 +15,10 @@ canvas { display: block; }
 .bar-label { position: absolute; top: 50%; left: 8px; transform: translateY(-50%); font-size: 10px; text-shadow: 0 0 3px #000; z-index: 1; letter-spacing: 1px; }
 
 #inventory { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
-.slot { width: 50px; height: 50px; background: rgba(0,0,0,0.7); border: 2px solid rgba(0,255,255,0.3); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.slot { position: relative; width: 50px; height: 50px; background: rgba(0,0,0,0.7); border: 2px solid rgba(0,255,255,0.3); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; cursor: pointer; pointer-events: auto; }
+.slot::after { content: attr(data-key); position: absolute; left: 4px; top: 2px; font: 10px 'Courier New', monospace; color: #8aa; }
 .slot.active { border-color: #00ffff; box-shadow: 0 0 10px rgba(0,255,255,0.5); }
+.slot.selected { border-color: #fff; box-shadow: 0 0 14px rgba(0,255,255,0.85); transform: translateY(-4px); }
 
 #layerIndicator { position: absolute; top: 20px; right: 20px; font-size: 13px; padding: 8px 16px; background: rgba(0,0,0,0.7); border: 1px solid rgba(0,255,255,0.5); border-radius: 3px; letter-spacing: 2px; }
 #stats { position: absolute; top: 60px; right: 20px; font-size: 11px; letter-spacing: 1px; line-height: 1.8; text-align: right; }
