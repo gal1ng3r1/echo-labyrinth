@@ -4,7 +4,8 @@ export const controls = {
   yaw: 0,
   pitch: 0,
   pointerLocked: false,
-  pointerLockSupported: true
+  pointerLockSupported: true,
+  dragging: false
 };
 
 export const keys = {};
@@ -12,6 +13,8 @@ export const keys = {};
 let domElement = null;
 let getState = () => 'start';
 let onFallback = null;
+let lastMouseX = 0;
+let lastMouseY = 0;
 
 function applyLook(dx, dy) {
   const sens = settings.sensitivity * 0.0016;
@@ -54,6 +57,8 @@ export function initControls(element, stateGetter, fallbackCallback) {
   domElement = element;
   getState = stateGetter;
   onFallback = fallbackCallback || (() => {});
+  controls.pointerLockSupported = typeof element.requestPointerLock === 'function' && typeof document.exitPointerLock === 'function';
+  if (!controls.pointerLockSupported) enableFallbackMode();
 
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -74,18 +79,35 @@ export function initControls(element, stateGetter, fallbackCallback) {
 
   document.addEventListener('mousemove', (e) => {
     if (getState() !== 'playing') return;
-    const dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-    const dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-    if (controls.pointerLocked || !controls.pointerLockSupported) {
+    let dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+    let dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+    if (!controls.pointerLocked && !controls.pointerLockSupported) {
+      if (!controls.dragging) return;
+      dx = e.clientX - lastMouseX;
+      dy = e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    }
+    if (controls.pointerLocked || (!controls.pointerLockSupported && controls.dragging)) {
       applyLook(dx, dy);
     }
   });
 
   domElement.addEventListener('mousedown', (e) => {
     if (getState() !== 'playing') return;
-    if (controls.pointerLockSupported && !controls.pointerLocked && e.button === 0) {
+    if (!controls.pointerLockSupported && e.button === 0) {
+      controls.dragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      domElement.classList.add('camera-dragging');
+    } else if (controls.pointerLockSupported && !controls.pointerLocked && e.button === 0) {
       requestLock();
     }
+  });
+
+  window.addEventListener('mouseup', () => {
+    controls.dragging = false;
+    domElement.classList.remove('camera-dragging');
   });
 
   document.getElementById('lockOverlay').addEventListener('click', () => {
