@@ -63,7 +63,8 @@ export function updateHUD(g) {
   for (let i = 0; i < 3; i++) {
     const slot = document.getElementById('slot' + i);
     slot.textContent = g.playerState.inventory[i] ? g.playerState.inventory[i].type : '';
-    slot.className = 'slot' + (g.playerState.inventory[i] ? ' active' : '');
+    slot.className = 'slot' + (g.playerState.inventory[i] ? ' active' : '') + (g.selectedSlot === i ? ' selected' : '');
+    slot.title = g.playerState.inventory[i] ? g.playerState.inventory[i].name : `Слот ${i + 1} пуст`;
   }
 
   const compInd = document.getElementById('companion-indicator');
