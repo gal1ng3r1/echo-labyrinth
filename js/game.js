@@ -1,6 +1,6 @@
 import {
   TILE, MAP_W, MAP_H, PLAYER_RADIUS, EYE_HEIGHT,
-  PLAYER_SPEED, RUN_MULT, LIGHT_DIST, LAYER_CONFIG
+  PLAYER_SPEED, RUN_MULT, LIGHT_DIST, LAYER_CONFIG, settings
 } from './config.js';
 import { initAudio, SFX } from './audio.js';
 import {
@@ -14,7 +14,7 @@ import {
 import { controls, keys, requestLock, releaseLock } from './player.js';
 import {
   showMessage, tickMessage, showDeathScreen, showChoiceScreen,
-  showWinScreen, updateHUD, renderMinimap, hideOverlay
+  showWinScreen, updateHUD, renderMinimap, hideOverlay, showScreen
 } from './ui.js';
 
 export const game = {
@@ -22,6 +22,7 @@ export const game = {
   currentLayer: 0,
   attempts: 1,
   moralChoice: 0,
+  selectedSlot: 0,
   gameTime: 0,
   playerPos: new THREE.Vector3(TILE * 1.5, EYE_HEIGHT, TILE * 1.5),
   playerState: null,
@@ -98,6 +99,7 @@ export function initGame() {
     inventory: [null, null, null],
     invincible: 0, moving: false, running: false
   };
+  game.selectedSlot = 0;
 
   let farthest = positions[0], maxDist = 0;
   positions.forEach(p => {
@@ -162,8 +164,8 @@ function handleInteraction() {
     return;
   }
   const inv = game.playerState.inventory;
-  for (let i = 0; i < 3; i++) {
-    if (inv[i]) {
+  const i = game.selectedSlot;
+  if (inv[i]) {
       const item = inv[i];
       if (item.type === '🧭') {
         const target = game.coreActivated ? game.exitPos : game.corePos;
@@ -185,8 +187,6 @@ function handleInteraction() {
         inv[i] = null;
         showMessage('Дверь открыта!');
       }
-      return;
-    }
   }
 }
 
@@ -203,11 +203,20 @@ function throwStone() {
 export function handleGameKey(code) {
   if (game.state !== 'playing') return;
   if (code === 'KeyF') game.playerState.flashlightOn = !game.playerState.flashlightOn;
-  if (code === 'Digit1' && game.currentLayer !== 0) switchLayer(0);
-  if (code === 'Digit2' && game.currentLayer !== 1) switchLayer(1);
-  if (code === 'Digit3' && game.currentLayer !== 2) switchLayer(2);
+  if (code === 'Digit1' || code === 'Digit2' || code === 'Digit3') selectInventorySlot(Number(code.slice(-1)) - 1);
+  if (code === 'KeyZ' && game.currentLayer !== 0) switchLayer(0);
+  if (code === 'KeyX' && game.currentLayer !== 1) switchLayer(1);
+  if (code === 'KeyC' && game.currentLayer !== 2) switchLayer(2);
   if (code === 'KeyE') handleInteraction();
   if (code === 'Space') throwStone();
+}
+
+export function selectInventorySlot(index) {
+  if (!game.playerState || index < 0 || index > 2) return;
+  game.selectedSlot = index;
+  const item = game.playerState.inventory[index];
+  showMessage(item ? `Выбрано: ${item.name} ${item.type}` : `Слот ${index + 1} пуст`);
+  updateHUD(game);
 }
 
 export function updateGame(dt) {
@@ -244,7 +253,7 @@ export function updateGame(dt) {
     if (game.stepTimer > (running ? 0.25 : 0.4)) { game.stepTimer = 0; SFX.step(); }
   }
 
-  const bobAmount = 0.08;
+  const bobAmount = 0.08 * (settings.headBob / 50);
   const bobY = moving ? Math.sin(game.headBobPhase) * bobAmount : 0;
   const bobX = moving ? Math.cos(game.headBobPhase * 0.5) * bobAmount * 0.5 : 0;
   camera.position.set(p.x + bobX, EYE_HEIGHT + bobY, p.z);
@@ -532,6 +541,7 @@ export function retryGame() {
   game.doors.forEach(d => { d.open = false; d.mesh.visible = true; });
   game.items.forEach(i => { i.collected = false; i.mesh.visible = true; });
   game.playerState.inventory = [null, null, null];
+  game.selectedSlot = 0;
   game.state = 'playing';
   hideOverlay();
   requestLock();
@@ -565,6 +575,7 @@ export function pauseGame() {
   game.state = 'pause';
   releaseLock();
   document.getElementById('lockOverlay').classList.remove('show');
+  showScreen('pauseScreen');
 }
 
 export function resumeGame() {
