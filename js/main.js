@@ -1,4 +1,4 @@
-import { game, initGameScene, updateGame, startGame, retryGame, makeChoice, pauseGame, resumeGame, quitToMenu, restartAll, handleGameKey } from './game.js';
+import { game, initGameScene, updateGame, startGame, retryGame, makeChoice, pauseGame, resumeGame, quitToMenu, restartAll, handleGameKey, selectInventorySlot } from './game.js';
 import { initControls } from './player.js';
 import { showScreen, loadSettingsUI, bindSettingsUI } from './ui.js';
 import { LAYER_CONFIG, settings } from './config.js';
@@ -32,11 +32,20 @@ byId('retryBtn').addEventListener('click', retryGame);
 byId('restartBtn').addEventListener('click', restartAll);
 byId('forgiveBtn').addEventListener('click', () => makeChoice(1));
 byId('resentBtn').addEventListener('click', () => makeChoice(-1));
+for (let i = 0; i < 3; i++) {
+  byId(`slot${i}`).addEventListener('click', () => {
+    if (game.state === 'playing') selectInventorySlot(i);
+  });
+}
 
 window.addEventListener('keydown', event => {
   if (event.code === 'Escape' && !event.repeat) {
     if (game.state === 'playing') pauseGame();
-    else if (game.state === 'pause') resumeGame();
+    else if (game.state === 'pause') {
+      const settingsOpen = !byId('settingsScreen').classList.contains('hidden');
+      if (settingsOpen) showScreen('pauseScreen');
+      else resumeGame();
+    }
     return;
   }
   if (!event.repeat) handleGameKey(event.code);
