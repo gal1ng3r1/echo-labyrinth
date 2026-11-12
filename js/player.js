@@ -43,7 +43,9 @@ function enableFallbackMode() {
 }
 
 export function requestLock() {
-  if (!controls.pointerLockSupported || !domElement || controls.pointerLocked) return;
+  if (!controls.pointerLockSupported || !domElement) return;
+  controls.pointerLocked = document.pointerLockElement === domElement;
+  if (controls.pointerLocked) return;
   try {
     const result = domElement.requestPointerLock();
     if (result && typeof result.catch === 'function') {
@@ -59,7 +61,8 @@ export function requestLock() {
 }
 
 export function releaseLock() {
-  if (controls.pointerLocked) document.exitPointerLock();
+  controls.pointerLocked = false;
+  if (document.pointerLockElement === domElement) document.exitPointerLock();
 }
 
 export function initControls(element, stateGetter, fallbackCallback) {
@@ -88,10 +91,11 @@ export function initControls(element, stateGetter, fallbackCallback) {
 
   document.addEventListener('mousemove', (e) => {
     if (getState() !== 'playing') return;
+    const actuallyLocked = document.pointerLockElement === domElement;
+    if (controls.pointerLocked !== actuallyLocked) controls.pointerLocked = actuallyLocked;
     let dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
     let dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-    if (!controls.pointerLocked) {
-      if (!controls.pointerLockSupported && !controls.dragging) return;
+    if (!actuallyLocked) {
       if (lastMouseX !== null && lastMouseY !== null) {
         dx = e.clientX - lastMouseX;
         dy = e.clientY - lastMouseY;
@@ -102,7 +106,7 @@ export function initControls(element, stateGetter, fallbackCallback) {
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
     }
-    if (controls.pointerLocked || controls.pointerLockSupported || controls.dragging) applyLook(dx, dy);
+    applyLook(dx, dy);
   });
 
   domElement.addEventListener('mousedown', (e) => {
