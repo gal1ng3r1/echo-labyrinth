@@ -16,6 +16,16 @@ let onFallback = null;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
+// Pause screens can consume the keyup event. Clear movement and drag state
+// explicitly so resuming never inherits a stuck key or stale mouse delta.
+export function clearInputState() {
+  Object.keys(keys).forEach(code => { keys[code] = false; });
+  controls.dragging = false;
+  lastMouseX = 0;
+  lastMouseY = 0;
+  if (domElement) domElement.classList.remove('camera-dragging');
+}
+
 function applyLook(dx, dy) {
   const sens = settings.sensitivity * 0.0016;
   controls.yaw -= dx * sens;
@@ -35,6 +45,8 @@ function enableFallbackMode() {
 
 export function requestLock() {
   if (!controls.pointerLockSupported || !domElement) return;
+  if (controls.pointerLocked) return;
+  document.getElementById('lockOverlay').classList.remove('show');
   try {
     const result = domElement.requestPointerLock();
     if (result && typeof result.catch === 'function') {
@@ -108,6 +120,11 @@ export function initControls(element, stateGetter, fallbackCallback) {
   window.addEventListener('mouseup', () => {
     controls.dragging = false;
     domElement.classList.remove('camera-dragging');
+  });
+
+  window.addEventListener('blur', clearInputState);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearInputState();
   });
 
   document.getElementById('lockOverlay').addEventListener('click', () => {

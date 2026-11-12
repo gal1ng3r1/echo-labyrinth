@@ -11,7 +11,7 @@ import {
   clearGameObjects, createExit, createCore, createCrystal, createEnemy,
   createButton, createDoor, createItem, createCompanion, createEchoMesh
 } from './world.js';
-import { controls, keys, requestLock, releaseLock } from './player.js';
+import { controls, keys, requestLock, releaseLock, clearInputState } from './player.js';
 import { echoFrameAt, findUsableDoor } from './mechanics.mjs';
 import {
   showMessage, tickMessage, showDeathScreen, showChoiceScreen,
@@ -614,6 +614,7 @@ export function makeChoice(choice) {
 
 export function pauseGame() {
   if (game.state !== 'playing') return;
+  clearInputState();
   game.state = 'pause';
   releaseLock();
   document.getElementById('lockOverlay').classList.remove('show');
@@ -621,12 +622,14 @@ export function pauseGame() {
 }
 
 export function resumeGame() {
+  clearInputState();
   game.state = 'playing';
   hideOverlay();
   requestLock();
 }
 
 export function quitToMenu() {
+  clearInputState();
   game.state = 'start';
   releaseLock();
   document.getElementById('lockOverlay').classList.remove('show');
