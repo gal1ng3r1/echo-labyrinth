@@ -11,7 +11,7 @@ camera.rotation.order = 'YXZ';
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = settings.quality === 'high';
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.domElement.id = 'gameCanvas';
 document.body.appendChild(renderer.domElement);

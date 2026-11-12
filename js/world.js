@@ -61,6 +61,7 @@ export function createCrystal(scene, pos) {
   group.add(mesh);
   const light = new THREE.PointLight(0x00ffff, 0.5, 4);
   light.position.y = 1;
+  light.visible = false;
   group.add(light);
   group.position.set(pos.x, 0, pos.z);
   scene.add(group);
@@ -100,6 +101,7 @@ export function createEnemy(scene, pos, patrolPoints) {
 
   const light = new THREE.PointLight(0xff0044, 0.3, 3);
   light.position.y = 1;
+  light.visible = false;
   group.add(light);
 
   group.position.set(pos.x, 0, pos.z);
@@ -168,6 +170,7 @@ export function createEchoStation(scene, pos) {
   group.add(ring);
   const light = new THREE.PointLight(0x00ccff, 0.8, 5);
   light.position.y = 0.5;
+  light.visible = false;
   group.add(light);
   group.position.set(pos.x, 0, pos.z);
   scene.add(group);
@@ -183,6 +186,7 @@ export function createMemoryFragment(scene, pos, index) {
   group.add(mesh);
   const light = new THREE.PointLight(0xff44aa, 0.7, 4);
   light.position.y = 1;
+  light.visible = false;
   group.add(light);
   group.position.set(pos.x, 0, pos.z);
   scene.add(group);

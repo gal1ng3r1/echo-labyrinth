@@ -45,6 +45,10 @@ export const game = {
 
 let scene = null, camera = null;
 let ambientLight = null, spotLight = null, playerLight = null;
+const moveForward = new THREE.Vector3();
+const moveRight = new THREE.Vector3();
+const flashlightDirection = new THREE.Vector3();
+let particleGeometry = null;
 
 export function initGameScene(_scene, _camera) {
   scene = _scene;
@@ -65,9 +69,10 @@ function setupLighting() {
 }
 
 function spawnParticles3D(x, z, color, count) {
+  if (!particleGeometry) particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
   for (let i = 0; i < count; i++) {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.08, 4, 4), mat);
+    const mesh = new THREE.Mesh(particleGeometry, mat);
     mesh.position.set(x, EYE_HEIGHT * 0.7, z);
     scene.add(mesh);
     game.particles.push({ mesh, mat, vx: (Math.random()-0.5)*4, vy: Math.random()*4+1, vz: (Math.random()-0.5)*4, life: 0.8 + Math.random()*0.5 });
@@ -100,12 +105,14 @@ function updateDoorStates() {
 export function initGame() {
   clearGameObjects(scene);
   game.stones.forEach(s => { scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mat.dispose(); });
-  game.particles.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mat.dispose(); });
+  game.particles.forEach(p => { scene.remove(p.mesh); p.mat.dispose(); });
   clearMazeMeshes();
 
   game.enemies = []; game.crystals = []; game.buttons = []; game.doors = []; game.items = []; game.echoStations = []; game.memories = [];
   game.echoes = []; game.particles = []; game.stones = []; game.currentEchoRecording = [];
   game.attemptTime = 0;
+  game.uiTimer = 0;
+  game.mapTimer = 0;
   game.lastEchoSample = -Infinity;
   game.visited = Array.from({ length: 3 }, () => Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false)));
 
@@ -299,13 +306,13 @@ export function updateGame(dt) {
   const p = game.playerPos;
   const yaw = controls.yaw;
 
-  const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  moveForward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+  moveRight.set(Math.cos(yaw), 0, -Math.sin(yaw));
   let moveX = 0, moveZ = 0;
-  if (keys['KeyW'] || keys['ArrowUp']) { moveX += forward.x; moveZ += forward.z; }
-  if (keys['KeyS'] || keys['ArrowDown']) { moveX -= forward.x; moveZ -= forward.z; }
-  if (keys['KeyA'] || keys['ArrowLeft']) { moveX -= right.x; moveZ -= right.z; }
-  if (keys['KeyD'] || keys['ArrowRight']) { moveX += right.x; moveZ += right.z; }
+  if (keys['KeyW'] || keys['ArrowUp']) { moveX += moveForward.x; moveZ += moveForward.z; }
+  if (keys['KeyS'] || keys['ArrowDown']) { moveX -= moveForward.x; moveZ -= moveForward.z; }
+  if (keys['KeyA'] || keys['ArrowLeft']) { moveX -= moveRight.x; moveZ -= moveRight.z; }
+  if (keys['KeyD'] || keys['ArrowRight']) { moveX += moveRight.x; moveZ += moveRight.z; }
   const len = Math.sqrt(moveX*moveX + moveZ*moveZ);
   if (len > 0) { moveX /= len; moveZ /= len; }
   const moving = len > 0;
@@ -351,8 +358,8 @@ export function updateGame(dt) {
     spotLight.distance = radius * 2 + flicker;
     spotLight.intensity = 12 * (0.5 + 0.5 * ps.flashlightCharge / 100);
     spotLight.position.copy(camera.position);
-    const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
-    spotLight.target.position.copy(camera.position).add(dir.multiplyScalar(10));
+    flashlightDirection.set(0, 0, -1).applyEuler(camera.rotation);
+    spotLight.target.position.copy(camera.position).addScaledVector(flashlightDirection, 10);
   } else {
     spotLight.visible = false;
   }
@@ -428,7 +435,8 @@ export function updateGame(dt) {
     }
     enemy.body.scale.setScalar(1 + Math.sin(enemy.pulse) * 0.1);
     enemy.eyeMat.emissiveIntensity = enemy.chasing ? 3 : 1.5;
-    enemy.light.intensity = enemy.chasing ? 0.8 : 0.3;
+    enemy.light.visible = enemy.chasing && d < 10;
+    enemy.light.intensity = 0.8;
 
     if (d < PLAYER_RADIUS + 0.7 && ps.invincible <= 0 && !(enemy.stunTime > 0)) {
       ps.health -= 15;
@@ -589,7 +597,7 @@ export function updateGame(dt) {
     pt.vy -= 6 * dt;
     pt.life -= dt;
     pt.mat.opacity = Math.max(0, pt.life);
-    if (pt.life <= 0) { scene.remove(pt.mesh); pt.mesh.geometry.dispose(); pt.mat.dispose(); return false; }
+    if (pt.life <= 0) { scene.remove(pt.mesh); pt.mat.dispose(); return false; }
     return true;
   });
 
@@ -624,8 +632,10 @@ export function updateGame(dt) {
     showDeathScreen(game.echoes.length, game.attempts);
   }
 
-  updateHUD(game);
-  renderMinimap(game);
+  game.uiTimer += dt;
+  game.mapTimer += dt;
+  if (game.uiTimer >= 0.1) { game.uiTimer = 0; updateHUD(game); }
+  if (game.mapTimer >= 0.15) { game.mapTimer = 0; renderMinimap(game); }
 }
 
 export function startGame() {

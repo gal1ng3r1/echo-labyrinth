@@ -175,6 +175,6 @@ export function bindSettingsUI(camera, renderer) {
     settings.quality = e.target.value;
     const pr = settings.quality === 'high' ? Math.min(window.devicePixelRatio, 2) : settings.quality === 'medium' ? Math.min(window.devicePixelRatio, 1.5) : 1;
     renderer.setPixelRatio(pr);
-    renderer.shadowMap.enabled = settings.quality !== 'low';
+    renderer.shadowMap.enabled = settings.quality === 'high';
   });
 }
