@@ -526,6 +526,10 @@ export function updateGame(dt) {
     game.exitMesh.mat.emissiveIntensity = 1.5;
     game.exitMesh.light.color.setHex(0x00ff88);
     game.exitMesh.light.intensity = 1.5;
+    game.exitMesh.sealMat.color.setHex(0x063b32);
+    game.exitMesh.sealMat.emissive.setHex(0x00aa77);
+    game.exitMesh.sealMat.emissiveIntensity = 1.4;
+    game.exitMesh.glyph.rotation.z -= dt * 3;
     if (dist2D(p.x, p.z, game.exitPos.x, game.exitPos.z) < 2) {
       game.state = 'win';
       releaseLock();
@@ -537,6 +541,9 @@ export function updateGame(dt) {
     game.exitMesh.mat.emissiveIntensity = 0.3;
     game.exitMesh.light.color.setHex(0x444444);
     game.exitMesh.light.intensity = 0.3;
+    game.exitMesh.sealMat.color.setHex(0x08080d);
+    game.exitMesh.sealMat.emissive.setHex(0x111111);
+    game.exitMesh.sealMat.emissiveIntensity = 0.25;
   }
 
   const comp = game.companion;

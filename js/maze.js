@@ -1,5 +1,36 @@
 import { TILE, WALL_H, MAP_W, MAP_H, LAYER_CONFIG, settings } from './config.js';
 
+const textureCache = new Map();
+
+function createSurfaceTexture(layer, floor) {
+  if (typeof document === 'undefined') return null;
+  const key = `${layer}:${floor}`;
+  if (textureCache.has(key)) return textureCache.get(key);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const cfg = LAYER_CONFIG[layer];
+  const color = `#${(floor ? cfg.floorColor : cfg.wallColor).toString(16).padStart(6, '0')}`;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = floor ? 'rgba(110,150,190,.16)' : 'rgba(180,210,255,.14)';
+  ctx.lineWidth = floor ? 1 : 2;
+  for (let i = 0; i <= 128; i += floor ? 16 : 32) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 128); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(128, i); ctx.stroke();
+  }
+  if (!floor) {
+    ctx.strokeStyle = layer === 2 ? 'rgba(255,30,100,.28)' : 'rgba(100,220,255,.2)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(10, 110); ctx.lineTo(42, 76); ctx.lineTo(68, 91); ctx.lineTo(112, 26); ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  textureCache.set(key, texture);
+  return texture;
+}
+
 export function generateMaze() {
   const grid = Array.from({length: MAP_H}, () => Array(MAP_W).fill(1));
   function carve(x, y) {
@@ -74,7 +105,7 @@ export function buildMazeMeshes(scene, mazes, currentLayer) {
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(MAP_W * TILE, MAP_H * TILE),
-      new THREE.MeshStandardMaterial({ color: cfg.floorColor, roughness: 0.9, metalness: 0.1 })
+      new THREE.MeshStandardMaterial({ color: cfg.floorColor, map: createSurfaceTexture(layer, true), roughness: 0.9, metalness: 0.1 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(MAP_W * TILE / 2, 0, MAP_H * TILE / 2);
@@ -90,7 +121,7 @@ export function buildMazeMeshes(scene, mazes, currentLayer) {
 
     const wallGeom = new THREE.BoxGeometry(TILE, WALL_H, TILE);
     const wallMat = new THREE.MeshStandardMaterial({
-      color: cfg.wallColor, roughness: 0.85, metalness: 0.15,
+      color: cfg.wallColor, map: createSurfaceTexture(layer, false), roughness: 0.78, metalness: 0.2,
       emissive: layer === 2 ? 0x220011 : 0x000000,
       emissiveIntensity: layer === 2 ? 0.3 : 0
     });

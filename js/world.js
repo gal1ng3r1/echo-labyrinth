@@ -14,17 +14,27 @@ export function clearGameObjects(scene) {
 export function createExit(scene, pos) {
   const group = new THREE.Group();
   group.userData.gameObj = true;
-  const mat = new THREE.MeshStandardMaterial({ color: 0x444444, emissive: 0x444444, emissiveIntensity: 0.5 });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.2, 8, 24), mat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 1.5;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x444444, emissive: 0x444444, emissiveIntensity: 0.5, roughness: 0.35, metalness: 0.55 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.16, 10, 32), mat);
+  ring.position.y = 1.8;
   group.add(ring);
+  const pillarL = new THREE.Mesh(new THREE.BoxGeometry(0.42, 3.4, 0.42), mat);
+  const pillarR = pillarL.clone();
+  pillarL.position.set(-1.2, 1.7, 0); pillarR.position.set(1.2, 1.7, 0);
+  group.add(pillarL, pillarR);
+  const sealMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x111111, emissiveIntensity: 0.4, transparent: true, opacity: 0.82 });
+  const seal = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 2.7), sealMat);
+  seal.position.set(0, 1.75, -0.08);
+  group.add(seal);
+  const glyph = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.07, 8, 18), sealMat);
+  glyph.position.set(0, 1.8, -0.14);
+  group.add(glyph);
   const light = new THREE.PointLight(0x444444, 0.5, 6);
   light.position.y = 1.5;
   group.add(light);
   group.position.set(pos.x, 0, pos.z);
   scene.add(group);
-  return { group, ring, light, mat };
+  return { group, ring, pillars: [pillarL, pillarR], seal, glyph, sealMat, light, mat };
 }
 
 export function createCore(scene, pos) {
@@ -60,12 +70,12 @@ export function createCrystal(scene, pos) {
 export function createEnemy(scene, pos, patrolPoints) {
   const group = new THREE.Group();
   group.userData.gameObj = true;
-  const body = new THREE.Mesh(
-    new THREE.SphereGeometry(0.7, 12, 12),
-    new THREE.MeshStandardMaterial({ color: 0x110011, emissive: 0x330022, emissiveIntensity: 0.5, roughness: 0.3 })
-  );
-  body.position.y = 0.9;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.46, 0.95, 6, 10), new THREE.MeshStandardMaterial({ color: 0x090712, emissive: 0x26002a, emissiveIntensity: 0.7, roughness: 0.35 }));
+  body.position.y = 1.05;
   group.add(body);
+  const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.82, 1.5, 9), new THREE.MeshStandardMaterial({ color: 0x16071d, emissive: 0x3d003d, emissiveIntensity: 0.45, roughness: 0.75 }));
+  cloak.position.y = 0.75;
+  group.add(cloak);
 
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0044, emissive: 0xff0044, emissiveIntensity: 2 });
   const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eyeMat);
@@ -74,6 +84,19 @@ export function createEnemy(scene, pos, patrolPoints) {
   const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eyeMat);
   eye2.position.set(0.2, 1.0, 0.55);
   group.add(eye2);
+  const haloMat = new THREE.MeshStandardMaterial({ color: 0x661155, emissive: 0xff0066, emissiveIntensity: 1.2 });
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.055, 6, 18), haloMat);
+  halo.rotation.x = Math.PI / 2;
+  halo.position.y = 1.5;
+  group.add(halo);
+  for (let i = 0; i < 3; i++) {
+    const tentacle = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.8, 5), haloMat);
+    const angle = (i / 3) * Math.PI * 2;
+    tentacle.position.set(Math.cos(angle) * 0.45, 0.25, Math.sin(angle) * 0.45);
+    tentacle.rotation.z = Math.cos(angle) * 0.45;
+    tentacle.rotation.x = Math.sin(angle) * 0.45;
+    group.add(tentacle);
+  }
 
   const light = new THREE.PointLight(0xff0044, 0.3, 3);
   light.position.y = 1;
