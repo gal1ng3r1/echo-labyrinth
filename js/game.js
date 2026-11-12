@@ -5,7 +5,7 @@ import {
 import { initAudio, SFX } from './audio.js';
 import {
   generateMaze, createLayerVariants, findOpenPositions, generatePatrolPoints,
-  buildMazeMeshes, setLayerVisible, canMove, isWall, dist2D
+  buildMazeMeshes, setLayerVisible, canMove, isWall, dist2D, hasLineOfSight
 } from './maze.js';
 import {
   clearGameObjects, createExit, createCore, createCrystal, createEnemy,
@@ -73,14 +73,26 @@ function spawnParticles3D(x, z, color, count) {
   }
 }
 
+function clearMazeMeshes() {
+  [...game.wallMeshes, ...game.floorMeshes].forEach(m => {
+    scene.remove(m);
+    m.geometry?.dispose();
+    m.material?.dispose();
+  });
+  game.wallMeshes = [];
+  game.floorMeshes = [];
+}
+
 export function initGame() {
   clearGameObjects(scene);
-  game.wallMeshes.forEach(m => { scene.remove(m); m.geometry?.dispose(); m.material?.dispose(); });
-  game.floorMeshes.forEach(m => { scene.remove(m); m.geometry?.dispose(); m.material?.dispose(); });
+  game.stones.forEach(s => { scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mat.dispose(); });
+  game.particles.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mat.dispose(); });
+  clearMazeMeshes();
 
   game.enemies = []; game.crystals = []; game.buttons = []; game.doors = []; game.items = [];
   game.echoes = []; game.particles = []; game.stones = []; game.currentEchoRecording = [];
   game.attemptTime = 0;
+  game.lastEchoSample = -Infinity;
   game.visited = Array.from({ length: 3 }, () => Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false)));
 
   const baseMaze = generateMaze();
@@ -304,8 +316,9 @@ export function updateGame(dt) {
   playerLight.position.copy(camera.position);
   playerLight.intensity = 0.3;
 
-  if (game.currentEchoRecording.length < 20000) {
+  if (game.attemptTime - game.lastEchoSample >= 0.1) {
     game.currentEchoRecording.push({ time: game.attemptTime, x: p.x, z: p.z, yaw: controls.yaw, layer: game.currentLayer });
+    game.lastEchoSample = game.attemptTime;
   }
   if (ps.invincible > 0) ps.invincible -= dt;
 
@@ -325,8 +338,11 @@ export function updateGame(dt) {
     enemy.pulse += dt * 3;
     const ex = enemy.mesh.position.x, ez = enemy.mesh.position.z;
     const d = dist2D(ex, ez, p.x, p.z);
-    const canSee = d < 15 && game.currentLayer === 0;
-    const inLight = ps.flashlightOn && ps.flashlightCharge > 0 && d < LIGHT_DIST * 0.6;
+    const visible = hasLineOfSight(ex, ez, p.x, p.z, game.mazes[game.currentLayer]);
+    const canSee = d < 15 && game.currentLayer === 0 && visible;
+    const towardEnemyX = ex - p.x, towardEnemyZ = ez - p.z;
+    const facing = d > 0 && ((-Math.sin(controls.yaw) * towardEnemyX - Math.cos(controls.yaw) * towardEnemyZ) / d) > Math.cos(Math.PI / 5);
+    const inLight = ps.flashlightOn && ps.flashlightCharge > 0 && d < LIGHT_DIST * 0.6 && visible && facing;
     let distracted = false;
     game.echoes.forEach(echo => {
       if (echo.layer === game.currentLayer && dist2D(ex, ez, echo.x, echo.z) < 4) distracted = true;
@@ -557,6 +573,10 @@ export function updateGame(dt) {
 
 export function startGame() {
   initAudio();
+  game.attempts = 1;
+  game.moralChoice = 0;
+  game.gameTime = 0;
+  clearInputState();
   initGame();
   game.state = 'playing';
   hideOverlay();
@@ -565,6 +585,7 @@ export function startGame() {
 
 export function retryGame() {
   game.attempts++;
+  clearInputState();
   game.playerPos.set(TILE * 1.5, EYE_HEIGHT, TILE * 1.5);
   controls.yaw = 0; controls.pitch = 0;
   game.playerState.health = 100;
@@ -575,9 +596,14 @@ export function retryGame() {
   setLayerVisible(scene, game.wallMeshes, game.floorMeshes, 0, ambientLight);
   game.currentEchoRecording = [];
   game.attemptTime = 0;
+  game.lastEchoSample = -Infinity;
   game.crystals.forEach(c => { c.collected = false; c.mesh.visible = true; });
   game.buttons.forEach(b => b.pressed = false);
-  game.enemies.forEach(e => { e.noiseTime = 0; e.stunTime = 0; });
+  game.enemies.forEach(e => {
+    e.noiseTime = 0; e.stunTime = 0; e.chasing = false; e.patrolIndex = 0;
+    e.mesh.position.set(e.patrolPoints[0].x, 0, e.patrolPoints[0].z);
+    e.mesh.rotation.y = 0;
+  });
   game.doors.forEach(d => { d.open = false; d.unlocked = false; d.mesh.visible = true; });
   game.items.filter(i => i.transient).forEach(i => scene.remove(i.mesh));
   game.items = game.items.filter(i => !i.transient);
@@ -597,6 +623,7 @@ export function makeChoice(choice) {
         if (game.mazes[0][y][x] === 1 && Math.random() < 0.15) {
           game.mazes[0][y][x] = 0; game.mazes[1][y][x] = 0; game.mazes[2][y][x] = 0;
         }
+    clearMazeMeshes();
     const built = buildMazeMeshes(scene, game.mazes, game.currentLayer);
     game.wallMeshes = built.wallMeshes;
     game.floorMeshes = built.floorMeshes;

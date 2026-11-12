@@ -17,7 +17,7 @@ export function generateMaze() {
   for (let i = 0; i < 20; i++) {
     const x = 1 + Math.floor(Math.random() * (MAP_W - 2));
     const y = 1 + Math.floor(Math.random() * (MAP_H - 2));
-    grid[y][x] = 0;
+    if ([[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => grid[y + dy][x + dx] === 0)) grid[y][x] = 0;
   }
   return grid;
 }
@@ -139,4 +139,15 @@ export function canMove(x, z, radius, layer, mazes) {
 
 export function dist2D(ax, az, bx, bz) {
   return Math.sqrt((ax-bx)**2 + (az-bz)**2);
+}
+
+export function hasLineOfSight(ax, az, bx, bz, maze, tileSize = TILE) {
+  const distance = Math.hypot(bx - ax, bz - az);
+  const steps = Math.max(1, Math.ceil(distance / (tileSize / 8)));
+  for (let i = 0; i <= steps; i++) {
+    const x = Math.floor((ax + (bx - ax) * i / steps) / tileSize);
+    const z = Math.floor((az + (bz - az) * i / steps) / tileSize);
+    if (maze[z]?.[x] !== 0) return false;
+  }
+  return true;
 }

@@ -133,6 +133,7 @@ export function createCompanion(scene) {
 
 export function createEchoMesh(scene) {
   const group = new THREE.Group();
+  group.userData.gameObj = true;
   const mat = new THREE.MeshStandardMaterial({
     color: 0x88ccff, emissive: 0x4488ff, emissiveIntensity: 0.8,
     transparent: true, opacity: 0.35, depthWrite: false
