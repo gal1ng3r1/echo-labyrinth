@@ -12,7 +12,7 @@ import {
   createButton, createDoor, createItem, createCompanion, createEchoMesh
 } from './world.js';
 import { controls, keys, requestLock, releaseLock, clearInputState } from './player.js';
-import { echoFrameAt, findUsableDoor } from './mechanics.mjs';
+import { echoFrameAt, findUsableDoor, findDoorPlacement, doorBlocks } from './mechanics.mjs';
 import {
   showMessage, tickMessage, showDeathScreen, showChoiceScreen,
   showWinScreen, updateHUD, renderMinimap, hideOverlay, showScreen
@@ -83,6 +83,11 @@ function clearMazeMeshes() {
   game.floorMeshes = [];
 }
 
+function canMovePlayer(x, z) {
+  if (!canMove(x, z, PLAYER_RADIUS, game.currentLayer, game.mazes)) return false;
+  return !game.doors.some(door => !door.open && doorBlocks(door, x, z, PLAYER_RADIUS));
+}
+
 export function initGame() {
   clearGameObjects(scene);
   game.stones.forEach(s => { scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mat.dispose(); });
@@ -143,8 +148,8 @@ export function initGame() {
   positions.slice(16, 19).forEach((p, i) => {
     game.buttons.push(createButton(scene, { x: p.x * TILE + TILE/2, z: p.y * TILE + TILE/2 }, i));
   });
-  const doorPos = positions[19] || positions[5];
-  game.doors.push(createDoor(scene, { x: doorPos.x * TILE + TILE/2, z: doorPos.y * TILE + TILE/2 }));
+  const doorPlacement = findDoorPlacement(game.mazes[0], TILE);
+  if (doorPlacement) game.doors.push(createDoor(scene, doorPlacement));
 
   const itemTypes = ['🔑', '🗺️', '🪞', '🧭', '⚡'];
   const itemNames = ['Ключ', 'Карта', 'Зеркало', 'Компас', 'Ловушка'];
@@ -279,8 +284,8 @@ export function updateGame(dt) {
   if (moving) {
     const newX = p.x + moveX * speed;
     const newZ = p.z + moveZ * speed;
-    if (canMove(newX, p.z, PLAYER_RADIUS, game.currentLayer, game.mazes)) p.x = newX;
-    if (canMove(p.x, newZ, PLAYER_RADIUS, game.currentLayer, game.mazes)) p.z = newZ;
+    if (canMovePlayer(newX, p.z)) p.x = newX;
+    if (canMovePlayer(p.x, newZ)) p.z = newZ;
     game.headBobPhase += dt * (running ? 12 : 8);
     game.stepTimer += dt;
     if (game.stepTimer > (running ? 0.25 : 0.4)) { game.stepTimer = 0; SFX.step(); }
@@ -434,17 +439,6 @@ export function updateGame(dt) {
     door.open = door.unlocked || game.buttons.filter(b => b.pressed).length >= door.requiredButtons;
     door.mesh.visible = !door.open;
   });
-  game.doors.forEach(door => {
-    if (!door.open) {
-      const dx = door.mesh.position.x, dz = door.mesh.position.z;
-      if (dist2D(p.x, p.z, dx, dz) < 1.5) {
-        const angle = Math.atan2(p.x - dx, p.z - dz);
-        p.x += Math.sin(angle) * 0.15;
-        p.z += Math.cos(angle) * 0.15;
-      }
-    }
-  });
-
   game.items.forEach(item => {
     if (item.collected) return;
     if (item.pickupDelay > 0) { item.pickupDelay -= dt; return; }

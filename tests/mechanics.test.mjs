@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { echoFrameAt, findUsableDoor } from '../js/mechanics.mjs';
+import { echoFrameAt, findUsableDoor, findDoorPlacement, doorBlocks } from '../js/mechanics.mjs';
 import { generateMaze, hasLineOfSight } from '../js/maze.js';
 
 const frames = [{ time: 0, x: 0 }, { time: 1, x: 1 }, { time: 2, x: 2 }];
@@ -8,6 +8,10 @@ assert.equal(echoFrameAt(frames, 20).x, 2);
 assert.equal(findUsableDoor([{ x: 8, z: 0, unlocked: false }], 0, 0), undefined);
 assert.equal(findUsableDoor([{ x: 2, z: 0, unlocked: false }], 0, 0).x, 2);
 assert.equal(findUsableDoor([{ x: 2, z: 0, unlocked: true }], 0, 0), undefined);
+const door = findDoorPlacement([[1, 1, 1], [1, 0, 0], [1, 1, 1]], 4);
+assert.deepEqual(door, { x: 8, z: 6, rotation: Math.PI / 2 });
+assert.equal(doorBlocks({ ...door, width: 2, depth: 0.3 }, 8, 6, 0.5), true);
+assert.equal(doorBlocks({ ...door, width: 2, depth: 0.3 }, 4, 6, 0.5), false);
 
 for (let i = 0; i < 100; i++) {
   const maze = generateMaze();

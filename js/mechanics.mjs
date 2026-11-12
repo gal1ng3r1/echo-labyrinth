@@ -11,3 +11,29 @@ export function echoFrameAt(frames, time) {
 export function findUsableDoor(doors, x, z) {
   return doors.find(door => !door.unlocked && Math.hypot(door.x - x, door.z - z) < 5);
 }
+
+export function findDoorPlacement(maze, tileSize = 4) {
+  for (let y = 1; y < maze.length - 1; y++) {
+    for (let x = 1; x < maze[y].length - 1; x++) {
+      if (maze[y][x] === 0 && maze[y][x + 1] === 0) {
+        return { x: (x + 1) * tileSize, z: (y + 0.5) * tileSize, rotation: Math.PI / 2 };
+      }
+    }
+  }
+  for (let y = 1; y < maze.length - 2; y++) {
+    for (let x = 1; x < maze[y].length - 1; x++) {
+      if (maze[y][x] === 0 && maze[y + 1][x] === 0) {
+        return { x: (x + 0.5) * tileSize, z: (y + 1) * tileSize, rotation: 0 };
+      }
+    }
+  }
+  return undefined;
+}
+
+export function doorBlocks(door, x, z, radius = 0.5) {
+  const dx = x - door.x, dz = z - door.z;
+  const c = Math.cos(door.rotation || 0), s = Math.sin(door.rotation || 0);
+  const localX = c * dx - s * dz;
+  const localZ = s * dx + c * dz;
+  return Math.abs(localX) <= door.width / 2 + radius && Math.abs(localZ) <= door.depth / 2 + radius;
+}
