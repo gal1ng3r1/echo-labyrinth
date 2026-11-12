@@ -64,7 +64,7 @@ export function updateHUD(g) {
   document.getElementById('attemptCount').textContent = 'ПОПЫТКА: ' + g.attempts;
   document.getElementById('objective').textContent = g.coreActivated ? 'ЦЕЛЬ: НАЙДИТЕ ВЫХОД' : 'ЦЕЛЬ: НАЙДИТЕ ЯДРО ВОСПОМИНАНИЯ';
   const selected = g.playerState.inventory[g.selectedSlot];
-  const actions = { '🔑': 'E: открыть дверь рядом', '🗺️': 'открывает карту слоя', '🪞': 'усиливает фонарик', '🧭': 'E: расстояние до цели', '⚡': 'E: остановить врагов' };
+  const actions = { '🔑': 'E: открыть дверь рядом', '🗺️': 'открывает карту слоя', '🪞': 'E: раскрыть угрозы', '🧭': 'E: расстояние до цели', '⚡': 'E: остановить врагов' };
   document.getElementById('itemHint').textContent = selected ? `${selected.name} — ${actions[selected.type]} · G: выбросить` : '1–3: выбрать предмет';
 
   for (let i = 0; i < 3; i++) {

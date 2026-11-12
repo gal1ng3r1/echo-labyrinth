@@ -106,7 +106,7 @@ export function createEnemy(scene, pos, patrolPoints) {
 
   group.position.set(pos.x, 0, pos.z);
   scene.add(group);
-  return { mesh: group, body, eyeMat, light, patrolPoints, patrolIndex: 0, chasing: false, pulse: Math.random() * Math.PI * 2, noiseX: pos.x, noiseZ: pos.z, noiseTime: 0, stunTime: 0 };
+  return { mesh: group, body, eyeMat, haloMat, light, patrolPoints, patrolIndex: 0, chasing: false, pulse: Math.random() * Math.PI * 2, noiseX: pos.x, noiseZ: pos.z, noiseTime: 0, stunTime: 0 };
 }
 
 export function createButton(scene, pos, id) {

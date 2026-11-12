@@ -35,7 +35,7 @@ export const game = {
   echoes: [], currentEchoRecording: [], particles: [], stones: [],
   exitPos: { x: 0, z: 0 },
   corePos: { x: 0, z: 0 },
-  coreActivated: false, memoryCount: 0,
+  coreActivated: false, memoryCount: 0, echoPulse: 0,
   exitMesh: null, coreMesh: null, companion: null,
   headBobPhase: 0, stepTimer: 0, heartbeatTimer: 0,
   switchFlash: 0, damageFlash: 0,
@@ -120,6 +120,7 @@ export function initGame() {
   game.mazes = createLayerVariants(baseMaze);
   game.currentLayer = 0;
   game.memoryCount = 0;
+  game.echoPulse = 0;
   const built = buildMazeMeshes(scene, game.mazes, 0);
   game.wallMeshes = built.wallMeshes;
   game.floorMeshes = built.floorMeshes;
@@ -169,7 +170,7 @@ export function initGame() {
   if (doorPlacement) game.doors.push(createDoor(scene, doorPlacement));
 
   const itemTypes = ['🔑', '🗺️', '🪞', '🧭', '⚡'];
-  const itemNames = ['Ключ', 'Карта', 'Зеркало', 'Компас', 'Ловушка'];
+  const itemNames = ['Ключ', 'Карта', 'Зеркало эха', 'Компас', 'Ловушка'];
   const itemColors = [0xffdd44, 0x88ff88, 0xccccff, 0xff88ff, 0xff8844];
   positions.slice(20, 25).forEach((p, i) => {
     game.items.push(createItem(scene, { x: p.x * TILE + TILE/2, z: p.y * TILE + TILE/2 }, itemTypes[i], itemNames[i], itemColors[i]));
@@ -235,7 +236,10 @@ function handleInteraction() {
         const target = game.coreActivated ? game.exitPos : game.corePos;
         showMessage(`Компас: ${Math.round(dist2D(p.x, p.z, target.x, target.z))}м до ${game.coreActivated ? 'выхода' : 'ядра'}`);
       } else if (item.type === '🪞') {
-        showMessage('Зеркало пассивно усиливает свет фонарика');
+        game.echoPulse = 5;
+        inv[i] = null;
+        showMessage('Зеркало эха раскрывает угрозы поблизости');
+        spawnParticles3D(p.x, p.z, 0xff44dd, 10);
       } else if (item.type === '⚡') {
         game.enemies.forEach(e => {
           if (dist2D(p.x, p.z, e.mesh.position.x, e.mesh.position.z) < 10) { e.stunTime = 4; e.chasing = false; }
@@ -303,6 +307,7 @@ export function updateGame(dt) {
 
   game.gameTime += dt;
   game.attemptTime += dt;
+  if (game.echoPulse > 0) game.echoPulse = Math.max(0, game.echoPulse - dt);
   const p = game.playerPos;
   const yaw = controls.yaw;
 
@@ -353,7 +358,6 @@ export function updateGame(dt) {
   if (ps.flashlightOn && ps.flashlightCharge > 0) {
     spotLight.visible = true;
     let radius = LIGHT_DIST * (0.5 + 0.5 * ps.flashlightCharge / 100);
-    if (ps.inventory.some(i => i && i.type === '🪞')) radius *= 1.3;
     const flicker = ps.flashlightCharge < 25 ? (Math.random() * 2 - 1) : 0;
     spotLight.distance = radius * 2 + flicker;
     spotLight.intensity = 12 * (0.5 + 0.5 * ps.flashlightCharge / 100);
@@ -393,6 +397,7 @@ export function updateGame(dt) {
     const towardEnemyX = ex - p.x, towardEnemyZ = ez - p.z;
     const facing = d > 0 && ((-Math.sin(controls.yaw) * towardEnemyX - Math.cos(controls.yaw) * towardEnemyZ) / d) > Math.cos(Math.PI / 5);
     const inLight = ps.flashlightOn && ps.flashlightCharge > 0 && d < LIGHT_DIST * 0.6 && visible && facing;
+    const revealed = game.echoPulse > 0 && d < 18;
     let distracted = false;
     game.echoes.forEach(echo => {
       if (echo.layer === game.currentLayer && dist2D(ex, ez, echo.x, echo.z) < 4) distracted = true;
@@ -434,7 +439,8 @@ export function updateGame(dt) {
       }
     }
     enemy.body.scale.setScalar(1 + Math.sin(enemy.pulse) * 0.1);
-    enemy.eyeMat.emissiveIntensity = enemy.chasing ? 3 : 1.5;
+    enemy.eyeMat.emissiveIntensity = revealed ? 5 : (enemy.chasing ? 3 : 1.5);
+    enemy.haloMat.emissiveIntensity = revealed ? 3 : 1.2;
     enemy.light.visible = enemy.chasing && d < 10;
     enemy.light.intensity = 0.8;
 
@@ -663,6 +669,7 @@ export function retryGame() {
   game.currentLayer = 0;
   game.coreActivated = false;
   game.memoryCount = 0;
+  game.echoPulse = 0;
   game.moralChoice = 0;
   game.switchFlash = 0;
   game.damageFlash = 0;
