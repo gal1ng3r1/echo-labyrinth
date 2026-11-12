@@ -12,6 +12,10 @@ const door = findDoorPlacement([[1, 1, 1], [1, 0, 0], [1, 1, 1]], 4);
 assert.deepEqual(door, { x: 8, z: 6, rotation: Math.PI / 2 });
 assert.equal(doorBlocks({ ...door, width: 2, depth: 0.3 }, 8, 6, 0.5), true);
 assert.equal(doorBlocks({ ...door, width: 2, depth: 0.3 }, 4, 6, 0.5), false);
+const longCorridor = Array.from({ length: 5 }, () => Array(10).fill(1));
+longCorridor[1].fill(0);
+const farDoor = findDoorPlacement(longCorridor, 4, 6);
+assert.ok(farDoor && farDoor.x >= 28, 'door should be placed away from the start');
 
 for (let i = 0; i < 100; i++) {
   const maze = generateMaze();

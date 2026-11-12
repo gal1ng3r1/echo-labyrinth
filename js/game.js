@@ -52,13 +52,13 @@ export function initGameScene(_scene, _camera) {
 
 function setupLighting() {
   if (!ambientLight) {
-    ambientLight = new THREE.AmbientLight(0x223344, 0.15);
+    ambientLight = new THREE.AmbientLight(0x334b66, 0.3);
     scene.add(ambientLight);
-    spotLight = new THREE.SpotLight(0xfff4d0, 3, LIGHT_DIST * 1.5, Math.PI / 5, 0.4, 1.5);
+    spotLight = new THREE.SpotLight(0xfff4d0, 12, LIGHT_DIST * 2, Math.PI / 4, 0.5, 1);
     spotLight.shadow.mapSize.set(512, 512);
     scene.add(spotLight);
     scene.add(spotLight.target);
-    playerLight = new THREE.PointLight(0x88aaff, 0.3, 3);
+    playerLight = new THREE.PointLight(0x88aaff, 0.6, 5);
     scene.add(playerLight);
   }
 }
@@ -148,7 +148,7 @@ export function initGame() {
   positions.slice(16, 19).forEach((p, i) => {
     game.buttons.push(createButton(scene, { x: p.x * TILE + TILE/2, z: p.y * TILE + TILE/2 }, i));
   });
-  const doorPlacement = findDoorPlacement(game.mazes[0], TILE);
+  const doorPlacement = findDoorPlacement(game.mazes[0], TILE, 8);
   if (doorPlacement) game.doors.push(createDoor(scene, doorPlacement));
 
   const itemTypes = ['🔑', '🗺️', '🪞', '🧭', '⚡'];
@@ -307,11 +307,11 @@ export function updateGame(dt) {
   }
   if (ps.flashlightOn && ps.flashlightCharge > 0) {
     spotLight.visible = true;
-    let radius = LIGHT_DIST * (ps.flashlightCharge / 100);
+    let radius = LIGHT_DIST * (0.5 + 0.5 * ps.flashlightCharge / 100);
     if (ps.inventory.some(i => i && i.type === '🪞')) radius *= 1.3;
     const flicker = ps.flashlightCharge < 25 ? (Math.random() * 2 - 1) : 0;
-    spotLight.distance = radius * 1.5 + flicker;
-    spotLight.intensity = 3 * (ps.flashlightCharge / 100);
+    spotLight.distance = radius * 2 + flicker;
+    spotLight.intensity = 12 * (0.5 + 0.5 * ps.flashlightCharge / 100);
     spotLight.position.copy(camera.position);
     const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
     spotLight.target.position.copy(camera.position).add(dir.multiplyScalar(10));
