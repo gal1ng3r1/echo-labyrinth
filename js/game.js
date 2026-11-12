@@ -86,7 +86,15 @@ function clearMazeMeshes() {
 
 function canMovePlayer(x, z) {
   if (!canMove(x, z, PLAYER_RADIUS, game.currentLayer, game.mazes)) return false;
-  return !game.doors.some(door => !door.open && doorBlocks(door, x, z, PLAYER_RADIUS));
+  return !game.doors.some(door => door.mesh.visible && !door.open && doorBlocks(door, x, z, PLAYER_RADIUS));
+}
+
+function updateDoorStates() {
+  const buttonsPressed = game.buttons.filter(button => button.pressed).length;
+  game.doors.forEach(door => {
+    door.open = door.unlocked || buttonsPressed >= door.requiredButtons;
+    door.mesh.visible = !door.open;
+  });
 }
 
 export function initGame() {
@@ -305,6 +313,7 @@ export function updateGame(dt) {
   const speed = PLAYER_SPEED * (running ? RUN_MULT : 1) * dt;
   game.playerState.moving = moving;
   game.playerState.running = running;
+  updateDoorStates();
 
   if (moving) {
     const newX = p.x + moveX * speed;
@@ -485,10 +494,7 @@ export function updateGame(dt) {
     btn.mat.color.setHex(btn.pressed ? 0x00ff88 : 0xffaa00);
     btn.mat.emissive.setHex(btn.pressed ? 0x00ff88 : 0xffaa00);
   });
-  game.doors.forEach(door => {
-    door.open = door.unlocked || game.buttons.filter(b => b.pressed).length >= door.requiredButtons;
-    door.mesh.visible = !door.open;
-  });
+  updateDoorStates();
   game.items.forEach(item => {
     if (item.collected) return;
     if (item.pickupDelay > 0) { item.pickupDelay -= dt; return; }

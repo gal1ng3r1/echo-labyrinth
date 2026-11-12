@@ -100,13 +100,13 @@ export function createDoor(scene, pos) {
   const group = new THREE.Group();
   group.userData.gameObj = true;
   const mat = new THREE.MeshStandardMaterial({ color: 0x884400, emissive: 0x442200, emissiveIntensity: 0.3 });
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3, 0.4), mat);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3, 0.8), mat);
   mesh.position.y = 1.5;
   group.add(mesh);
   group.position.set(pos.x, 0, pos.z);
   group.rotation.y = pos.rotation || 0;
   scene.add(group);
-  return { mesh: group, obj: mesh, mat, open: false, unlocked: false, requiredButtons: 3, width: 3.6, depth: 0.4, rotation: pos.rotation || 0 };
+  return { mesh: group, obj: mesh, mat, open: false, unlocked: false, requiredButtons: 3, width: 3.8, depth: 0.8, rotation: pos.rotation || 0 };
 }
 
 export function createItem(scene, pos, type, name, color) {
