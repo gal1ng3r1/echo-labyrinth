@@ -12,6 +12,7 @@ const door = findDoorPlacement([[1, 1, 1], [1, 0, 0], [1, 1, 1]], 4);
 assert.deepEqual(door, { x: 8, z: 6, rotation: Math.PI / 2 });
 assert.equal(doorBlocks({ ...door, width: 2, depth: 0.3 }, 8, 6, 0.5), true);
 assert.equal(doorBlocks({ ...door, width: 3.8, depth: 0.8 }, 8, 8, 0.5), true);
+assert.equal(doorBlocks({ mesh: { position: { x: 8, z: 6 } }, width: 3.8, depth: 0.8, rotation: Math.PI / 2 }, 8, 6, 0.5), true);
 assert.equal(doorBlocks({ ...door, width: 2, depth: 0.3 }, 4, 6, 0.5), false);
 assert.deepEqual(rebaseEchoFrames([{ time: 5, x: 1 }, { time: 7, x: 2 }]), [{ time: 0, x: 1 }, { time: 2, x: 2 }]);
 const noisyEnemy = { mesh: { position: { x: 1, z: 1 } } };

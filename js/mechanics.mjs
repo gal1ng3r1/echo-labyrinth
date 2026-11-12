@@ -32,7 +32,10 @@ export function findDoorPlacement(maze, tileSize = 4, minDistance = 0) {
 }
 
 export function doorBlocks(door, x, z, radius = 0.5) {
-  const dx = x - door.x, dz = z - door.z;
+  const doorX = door.x ?? door.mesh?.position?.x;
+  const doorZ = door.z ?? door.mesh?.position?.z;
+  if (!Number.isFinite(doorX) || !Number.isFinite(doorZ)) return false;
+  const dx = x - doorX, dz = z - doorZ;
   const c = Math.cos(door.rotation || 0), s = Math.sin(door.rotation || 0);
   const localX = c * dx - s * dz;
   const localZ = s * dx + c * dz;
