@@ -5,6 +5,7 @@ export const controls = {
   pitch: 0,
   pointerLocked: false,
   pointerLockSupported: true,
+  lockRequestPending: false,
   dragging: false
 };
 
@@ -15,6 +16,7 @@ let getState = () => 'start';
 let onFallback = null;
 let lastMouseX = 0;
 let lastMouseY = 0;
+let lockPromptTimer = null;
 
 // Pause screens can consume the keyup event. Clear movement and drag state
 // explicitly so resuming never inherits a stuck key or stale mouse delta.
@@ -24,6 +26,11 @@ export function clearInputState() {
   lastMouseX = 0;
   lastMouseY = 0;
   if (domElement) domElement.classList.remove('camera-dragging');
+  if (lockPromptTimer !== null) {
+    clearTimeout(lockPromptTimer);
+    lockPromptTimer = null;
+  }
+  if (typeof document !== 'undefined') document.getElementById('lockOverlay')?.classList.remove('show');
 }
 
 function applyLook(dx, dy) {
@@ -46,22 +53,34 @@ function enableFallbackMode() {
 export function requestLock() {
   if (!controls.pointerLockSupported || !domElement) return;
   if (controls.pointerLocked) return;
+  if (lockPromptTimer !== null) {
+    clearTimeout(lockPromptTimer);
+    lockPromptTimer = null;
+  }
+  controls.lockRequestPending = true;
   document.getElementById('lockOverlay').classList.remove('show');
   try {
     const result = domElement.requestPointerLock();
     if (result && typeof result.catch === 'function') {
       result.catch((err) => {
         console.warn('Pointer lock отклонён:', err);
+        controls.lockRequestPending = false;
         enableFallbackMode();
       });
     }
   } catch (e) {
     console.warn('Pointer lock недоступен:', e);
+    controls.lockRequestPending = false;
     enableFallbackMode();
   }
 }
 
 export function releaseLock() {
+  controls.lockRequestPending = false;
+  if (lockPromptTimer !== null) {
+    clearTimeout(lockPromptTimer);
+    lockPromptTimer = null;
+  }
   if (controls.pointerLocked) document.exitPointerLock();
 }
 
@@ -77,11 +96,13 @@ export function initControls(element, stateGetter, fallbackCallback) {
 
   document.addEventListener('pointerlockerror', () => {
     console.warn('pointerlockerror — fallback-режим');
+    controls.lockRequestPending = false;
     enableFallbackMode();
   });
 
   document.addEventListener('pointerlockchange', () => {
     controls.pointerLocked = (document.pointerLockElement === domElement);
+    if (controls.pointerLocked) controls.lockRequestPending = false;
     if (getState() !== 'playing' || controls.pointerLocked || !controls.pointerLockSupported) {
       document.getElementById('lockOverlay').classList.remove('show');
       return;
@@ -89,8 +110,10 @@ export function initControls(element, stateGetter, fallbackCallback) {
     // Escape can emit pointerlockchange just before the key handler switches
     // the game to pause. Defer the prompt and re-check the state so pause UI
     // never gets covered by the lock overlay.
-    setTimeout(() => {
-      if (getState() === 'playing' && !controls.pointerLocked && controls.pointerLockSupported)
+    if (lockPromptTimer !== null) clearTimeout(lockPromptTimer);
+    lockPromptTimer = setTimeout(() => {
+      lockPromptTimer = null;
+      if (getState() === 'playing' && !controls.pointerLocked && controls.pointerLockSupported && !controls.lockRequestPending)
         document.getElementById('lockOverlay').classList.add('show');
     }, 0);
   });
