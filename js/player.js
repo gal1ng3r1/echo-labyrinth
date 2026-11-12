@@ -68,6 +68,7 @@ export function initControls(element, stateGetter, fallbackCallback) {
   onFallback = fallbackCallback || (() => {});
   controls.pointerLockSupported = typeof element.requestPointerLock === 'function' && typeof document.exitPointerLock === 'function';
   if (!controls.pointerLockSupported) enableFallbackMode();
+  element.style.cursor = 'none';
 
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
