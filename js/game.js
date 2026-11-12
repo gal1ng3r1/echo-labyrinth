@@ -12,6 +12,7 @@ import {
   createButton, createDoor, createItem, createCompanion, createEchoMesh
 } from './world.js';
 import { controls, keys, requestLock, releaseLock } from './player.js';
+import { echoFrameAt, findUsableDoor } from './mechanics.mjs';
 import {
   showMessage, tickMessage, showDeathScreen, showChoiceScreen,
   showWinScreen, updateHUD, renderMinimap, hideOverlay, showScreen
@@ -79,6 +80,8 @@ export function initGame() {
 
   game.enemies = []; game.crystals = []; game.buttons = []; game.doors = []; game.items = [];
   game.echoes = []; game.particles = []; game.stones = []; game.currentEchoRecording = [];
+  game.attemptTime = 0;
+  game.visited = Array.from({ length: 3 }, () => Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false)));
 
   const baseMaze = generateMaze();
   game.mazes = createLayerVariants(baseMaze);
@@ -146,6 +149,10 @@ export function initGame() {
 }
 
 export function switchLayer(layer) {
+  if (!canMove(game.playerPos.x, game.playerPos.z, PLAYER_RADIUS, layer, game.mazes)) {
+    showMessage('Здесь переход невозможен: в другом слое стена');
+    return;
+  }
   game.currentLayer = layer;
   setLayerVisible(scene, game.wallMeshes, game.floorMeshes, layer, ambientLight);
   game.switchFlash = 0.5;
@@ -171,21 +178,22 @@ function handleInteraction() {
         const target = game.coreActivated ? game.exitPos : game.corePos;
         showMessage(`Компас: ${Math.round(dist2D(p.x, p.z, target.x, target.z))}м до ${game.coreActivated ? 'выхода' : 'ядра'}`);
       } else if (item.type === '🪞') {
-        game.playerState.flashlightCharge = Math.min(100, game.playerState.flashlightCharge + 15);
-        showMessage('Зеркало усиливает свет!');
+        showMessage('Зеркало пассивно усиливает свет фонарика');
       } else if (item.type === '⚡') {
         game.enemies.forEach(e => {
-          if (dist2D(p.x, p.z, e.mesh.position.x, e.mesh.position.z) < 10) { e.patrolIndex = 0; e.chasing = false; }
+          if (dist2D(p.x, p.z, e.mesh.position.x, e.mesh.position.z) < 10) { e.stunTime = 4; e.chasing = false; }
         });
         inv[i] = null;
         showMessage('Ловушка активирована!');
         spawnParticles3D(p.x, p.z, 0xff8844, 15);
       } else if (item.type === '🔑') {
-        game.doors.forEach(d => {
-          if (dist2D(p.x, p.z, d.mesh.position.x, d.mesh.position.z) < 5) { d.open = true; d.mesh.visible = false; }
-        });
+        const door = findUsableDoor(game.doors.map(d => ({ x: d.mesh.position.x, z: d.mesh.position.z, unlocked: d.unlocked, door: d })), p.x, p.z);
+        if (!door) { showMessage('Рядом нет закрытой двери'); return; }
+        door.door.unlocked = true;
         inv[i] = null;
         showMessage('Дверь открыта!');
+      } else if (item.type === '🗺️') {
+        showMessage('Карта показывает весь текущий слой');
       }
   }
 }
@@ -209,6 +217,18 @@ export function handleGameKey(code) {
   if (code === 'KeyC' && game.currentLayer !== 2) switchLayer(2);
   if (code === 'KeyE') handleInteraction();
   if (code === 'Space') throwStone();
+  if (code === 'KeyQ') switchLayer((game.currentLayer + 1) % 3);
+  if (code === 'KeyG') {
+    const item = game.playerState.inventory[game.selectedSlot];
+    if (item) {
+      const dropped = createItem(scene, { x: game.playerPos.x, z: game.playerPos.z }, item.type, item.name, 0xffdd44);
+      dropped.pickupDelay = 2;
+      dropped.transient = true;
+      game.items.push(dropped);
+      game.playerState.inventory[game.selectedSlot] = null;
+      showMessage(`Выброшено: ${item.name}`);
+    }
+  }
 }
 
 export function selectInventorySlot(index) {
@@ -225,6 +245,7 @@ export function updateGame(dt) {
   if (controls.pointerLockSupported && !controls.pointerLocked) return;
 
   game.gameTime += dt;
+  game.attemptTime += dt;
   const p = game.playerPos;
   const yaw = controls.yaw;
 
@@ -284,15 +305,14 @@ export function updateGame(dt) {
   playerLight.intensity = 0.3;
 
   if (game.currentEchoRecording.length < 20000) {
-    game.currentEchoRecording.push({ x: p.x, z: p.z, yaw: controls.yaw, layer: game.currentLayer });
+    game.currentEchoRecording.push({ time: game.attemptTime, x: p.x, z: p.z, yaw: controls.yaw, layer: game.currentLayer });
   }
   if (ps.invincible > 0) ps.invincible -= dt;
 
   game.echoes.forEach(echo => {
-    if (echo.frameIndex < echo.frames.length) {
-      const f = echo.frames[echo.frameIndex];
+    if (echo.frames.length) {
+      const f = echoFrameAt(echo.frames, game.attemptTime);
       echo.x = f.x; echo.z = f.z; echo.yaw = f.yaw; echo.layer = f.layer;
-      echo.frameIndex++;
     }
     if (echo.mesh) {
       echo.mesh.position.set(echo.x, 0, echo.z);
@@ -311,7 +331,19 @@ export function updateGame(dt) {
     game.echoes.forEach(echo => {
       if (echo.layer === game.currentLayer && dist2D(ex, ez, echo.x, echo.z) < 4) distracted = true;
     });
-    if ((canSee || inLight) && !distracted && game.currentLayer !== 1) {
+    if (enemy.noiseTime > 0) enemy.noiseTime -= dt;
+    if (enemy.stunTime > 0) enemy.stunTime -= dt;
+    if (enemy.stunTime > 0) {
+      enemy.chasing = false;
+    } else if (enemy.noiseTime > 0 && game.currentLayer !== 1) {
+      enemy.chasing = false;
+      const angle = Math.atan2(enemy.noiseX - ex, enemy.noiseZ - ez);
+      if (dist2D(ex, ez, enemy.noiseX, enemy.noiseZ) > 1) {
+        const nx = ex + Math.sin(angle) * 3 * dt, nz = ez + Math.cos(angle) * 3 * dt;
+        if (canMove(nx, ez, 0.7, game.currentLayer, game.mazes)) enemy.mesh.position.x = nx;
+        if (canMove(enemy.mesh.position.x, nz, 0.7, game.currentLayer, game.mazes)) enemy.mesh.position.z = nz;
+      }
+    } else if ((canSee || inLight) && !distracted && game.currentLayer !== 1) {
       enemy.chasing = true;
       const angle = Math.atan2(p.x - ex, p.z - ez);
       const newX = ex + Math.sin(angle) * 4.2 * dt;
@@ -339,7 +371,7 @@ export function updateGame(dt) {
     enemy.eyeMat.emissiveIntensity = enemy.chasing ? 3 : 1.5;
     enemy.light.intensity = enemy.chasing ? 0.8 : 0.3;
 
-    if (d < PLAYER_RADIUS + 0.7 && ps.invincible <= 0) {
+    if (d < PLAYER_RADIUS + 0.7 && ps.invincible <= 0 && !(enemy.stunTime > 0)) {
       ps.health -= 15;
       ps.invincible = 1.0;
       game.damageFlash = 1;
@@ -383,7 +415,7 @@ export function updateGame(dt) {
     btn.mat.emissive.setHex(btn.pressed ? 0x00ff88 : 0xffaa00);
   });
   game.doors.forEach(door => {
-    door.open = game.buttons.filter(b => b.pressed).length >= door.requiredButtons;
+    door.open = door.unlocked || game.buttons.filter(b => b.pressed).length >= door.requiredButtons;
     door.mesh.visible = !door.open;
   });
   game.doors.forEach(door => {
@@ -399,6 +431,7 @@ export function updateGame(dt) {
 
   game.items.forEach(item => {
     if (item.collected) return;
+    if (item.pickupDelay > 0) { item.pickupDelay -= dt; return; }
     item.obj.rotation.y += dt * 1.5;
     item.obj.position.y = 1 + Math.sin(game.gameTime * 2) * 0.15;
     if (dist2D(p.x, p.z, item.mesh.position.x, item.mesh.position.z) < 1.5) {
@@ -463,6 +496,11 @@ export function updateGame(dt) {
     s.life -= dt;
     if (isWall(s.mesh.position.x, s.mesh.position.z, game.currentLayer, game.mazes) || s.life <= 0 || s.mesh.position.y < 0) {
       SFX.echo();
+      game.enemies.forEach(enemy => {
+        if (dist2D(enemy.mesh.position.x, enemy.mesh.position.z, s.mesh.position.x, s.mesh.position.z) < 18) {
+          enemy.noiseX = s.mesh.position.x; enemy.noiseZ = s.mesh.position.z; enemy.noiseTime = 4;
+        }
+      });
       spawnParticles3D(s.mesh.position.x, s.mesh.position.z, 0x888888, 6);
       scene.remove(s.mesh);
       s.mesh.geometry.dispose();
@@ -536,9 +574,13 @@ export function retryGame() {
   game.currentLayer = 0;
   setLayerVisible(scene, game.wallMeshes, game.floorMeshes, 0, ambientLight);
   game.currentEchoRecording = [];
+  game.attemptTime = 0;
   game.crystals.forEach(c => { c.collected = false; c.mesh.visible = true; });
   game.buttons.forEach(b => b.pressed = false);
-  game.doors.forEach(d => { d.open = false; d.mesh.visible = true; });
+  game.enemies.forEach(e => { e.noiseTime = 0; e.stunTime = 0; });
+  game.doors.forEach(d => { d.open = false; d.unlocked = false; d.mesh.visible = true; });
+  game.items.filter(i => i.transient).forEach(i => scene.remove(i.mesh));
+  game.items = game.items.filter(i => !i.transient);
   game.items.forEach(i => { i.collected = false; i.mesh.visible = true; });
   game.playerState.inventory = [null, null, null];
   game.selectedSlot = 0;

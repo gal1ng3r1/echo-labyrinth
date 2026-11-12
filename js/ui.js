@@ -53,12 +53,16 @@ export function showWinScreen(moralChoice, attempts, echoCount, gameTime) {
 }
 
 export function updateHUD(g) {
-  document.getElementById('healthFill').style.width = g.playerState.health + '%';
+  document.getElementById('healthFill').style.width = Math.max(0, Math.min(100, g.playerState.health / g.playerState.maxHealth * 100)) + '%';
   document.getElementById('flashlightFill').style.width = g.playerState.flashlightCharge + '%';
   document.getElementById('layerIndicator').textContent = 'СЛОЙ: ' + LAYER_NAMES[g.currentLayer];
   document.getElementById('layerIndicator').style.borderColor = '#' + LAYER_CONFIG[g.currentLayer].accent.toString(16).padStart(6, '0');
   document.getElementById('echoCount').textContent = 'ЭХО: ' + g.echoes.length;
   document.getElementById('attemptCount').textContent = 'ПОПЫТКА: ' + g.attempts;
+  document.getElementById('objective').textContent = g.coreActivated ? 'ЦЕЛЬ: НАЙДИТЕ ВЫХОД' : 'ЦЕЛЬ: НАЙДИТЕ ЯДРО ВОСПОМИНАНИЯ';
+  const selected = g.playerState.inventory[g.selectedSlot];
+  const actions = { '🔑': 'E: открыть дверь рядом', '🗺️': 'открывает карту слоя', '🪞': 'усиливает фонарик', '🧭': 'E: расстояние до цели', '⚡': 'E: остановить врагов' };
+  document.getElementById('itemHint').textContent = selected ? `${selected.name} — ${actions[selected.type]} · G: выбросить` : '1–3: выбрать предмет';
 
   for (let i = 0; i < 3; i++) {
     const slot = document.getElementById('slot' + i);
@@ -91,11 +95,16 @@ export function renderMinimap(g) {
   ctx.fillRect(0, 0, 140, 140);
   const maze = g.mazes[g.currentLayer];
   const hasMap = g.playerState.inventory.some(i => i && i.type === '🗺️');
+  const visited = g.visited[g.currentLayer];
+  const px = Math.floor(g.playerPos.x / TILE), py = Math.floor(g.playerPos.z / TILE);
+  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
+    if (Math.abs(x - px) + Math.abs(y - py) < 6) visited[y][x] = true;
+  }
   for (let y = 0; y < MAP_H; y++) {
     for (let x = 0; x < MAP_W; x++) {
       if (maze[y][x] === 1) {
         const d = Math.abs(x - Math.floor(g.playerPos.x/TILE)) + Math.abs(y - Math.floor(g.playerPos.z/TILE));
-        if (hasMap || d < 6) {
+        if (hasMap || visited[y][x]) {
           ctx.fillStyle = '#' + LAYER_CONFIG[g.currentLayer].accent.toString(16).padStart(6, '0');
           ctx.globalAlpha = 0.5;
           ctx.fillRect(x * scale, y * scale, scale, scale);
