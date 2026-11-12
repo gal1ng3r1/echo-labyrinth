@@ -43,20 +43,8 @@ function enableFallbackMode() {
 }
 
 export function requestLock() {
-  if (!controls.pointerLockSupported || !domElement) return;
-  if (controls.pointerLocked) return;
-  try {
-    const result = domElement.requestPointerLock();
-    if (result && typeof result.catch === 'function') {
-      result.catch((err) => {
-        console.warn('Pointer lock отклонён:', err);
-        enableFallbackMode();
-      });
-    }
-  } catch (e) {
-    console.warn('Pointer lock недоступен:', e);
-    enableFallbackMode();
-  }
+  // Camera uses regular mouse movement; pointer lock is intentionally disabled
+  // so pausing never requires a second click to regain control.
 }
 
 export function releaseLock() {
@@ -67,8 +55,8 @@ export function initControls(element, stateGetter, fallbackCallback) {
   domElement = element;
   getState = stateGetter;
   onFallback = fallbackCallback || (() => {});
-  controls.pointerLockSupported = typeof element.requestPointerLock === 'function' && typeof document.exitPointerLock === 'function';
-  if (!controls.pointerLockSupported) enableFallbackMode();
+  controls.pointerLockSupported = false;
+  enableFallbackMode();
 
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -87,27 +75,20 @@ export function initControls(element, stateGetter, fallbackCallback) {
     let dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
     let dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
     if (!controls.pointerLocked && !controls.pointerLockSupported) {
-      if (!controls.dragging) return;
-      dx = e.clientX - lastMouseX;
-      dy = e.clientY - lastMouseY;
+      if (lastMouseX !== 0 || lastMouseY !== 0) {
+        dx = dx || e.clientX - lastMouseX;
+        dy = dy || e.clientY - lastMouseY;
+      }
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
     }
-    if (controls.pointerLocked || (!controls.pointerLockSupported && controls.dragging)) {
-      applyLook(dx, dy);
-    }
+    applyLook(dx, dy);
   });
 
   domElement.addEventListener('mousedown', (e) => {
     if (getState() !== 'playing') return;
-    if (!controls.pointerLockSupported && e.button === 0) {
-      controls.dragging = true;
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-      domElement.classList.add('camera-dragging');
-    } else if (controls.pointerLockSupported && !controls.pointerLocked && e.button === 0) {
-      requestLock();
-    }
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
   });
 
   window.addEventListener('mouseup', () => {
