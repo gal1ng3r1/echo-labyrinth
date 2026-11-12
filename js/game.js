@@ -259,7 +259,6 @@ export function selectInventorySlot(index) {
 export function updateGame(dt) {
   tickMessage(dt);
   if (game.state !== 'playing') return;
-  if (controls.pointerLockSupported && !controls.pointerLocked) return;
 
   game.gameTime += dt;
   game.attemptTime += dt;

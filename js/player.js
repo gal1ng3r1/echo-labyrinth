@@ -13,16 +13,16 @@ export const keys = {};
 let domElement = null;
 let getState = () => 'start';
 let onFallback = null;
-let lastMouseX = 0;
-let lastMouseY = 0;
+let lastMouseX = null;
+let lastMouseY = null;
 
 // Pause screens can consume the keyup event. Clear movement and drag state
 // explicitly so resuming never inherits a stuck key or stale mouse delta.
 export function clearInputState() {
   Object.keys(keys).forEach(code => { keys[code] = false; });
   controls.dragging = false;
-  lastMouseX = 0;
-  lastMouseY = 0;
+  lastMouseX = null;
+  lastMouseY = null;
   if (domElement) domElement.classList.remove('camera-dragging');
 }
 
@@ -80,20 +80,29 @@ export function initControls(element, stateGetter, fallbackCallback) {
 
   document.addEventListener('pointerlockchange', () => {
     controls.pointerLocked = (document.pointerLockElement === domElement);
+    if (!controls.pointerLocked) {
+      lastMouseX = null;
+      lastMouseY = null;
+    }
   });
 
   document.addEventListener('mousemove', (e) => {
     if (getState() !== 'playing') return;
     let dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
     let dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-    if (!controls.pointerLocked && !controls.pointerLockSupported) {
-      if (!controls.dragging) return;
-      dx = e.clientX - lastMouseX;
-      dy = e.clientY - lastMouseY;
+    if (!controls.pointerLocked) {
+      if (!controls.pointerLockSupported && !controls.dragging) return;
+      if (lastMouseX !== null && lastMouseY !== null) {
+        dx = e.clientX - lastMouseX;
+        dy = e.clientY - lastMouseY;
+      } else {
+        dx = 0;
+        dy = 0;
+      }
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
     }
-    if (controls.pointerLocked || (!controls.pointerLockSupported && controls.dragging)) applyLook(dx, dy);
+    if (controls.pointerLocked || controls.pointerLockSupported || controls.dragging) applyLook(dx, dy);
   });
 
   domElement.addEventListener('mousedown', (e) => {
