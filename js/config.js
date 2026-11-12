@@ -1,12 +1,14 @@
 export const TILE = 4;
 export const WALL_H = 4;
-export const MAP_W = 21;
-export const MAP_H = 21;
+export const MAP_W = 31;
+export const MAP_H = 31;
 
 export const PLAYER_RADIUS = 0.5;
 export const EYE_HEIGHT = 1.6;
 export const PLAYER_SPEED = 5.5;
 export const RUN_MULT = 1.7;
+export const STAMINA_DRAIN = 28;
+export const STAMINA_RECOVER = 18;
 export const LIGHT_DIST = 28;
 
 export const LAYER_NAMES = ['РЕАЛЬНОСТЬ', 'ПАМЯТЬ', 'КОШМАР'];

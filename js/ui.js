@@ -57,6 +57,7 @@ export function showWinScreen(moralChoice, attempts, echoCount, gameTime) {
 export function updateHUD(g) {
   document.getElementById('healthFill').style.width = Math.max(0, Math.min(100, g.playerState.health / g.playerState.maxHealth * 100)) + '%';
   document.getElementById('flashlightFill').style.width = g.playerState.flashlightCharge + '%';
+  document.getElementById('staminaFill').style.width = Math.max(0, Math.min(100, g.playerState.stamina / g.playerState.maxStamina * 100)) + '%';
   document.getElementById('layerIndicator').textContent = 'СЛОЙ: ' + LAYER_NAMES[g.currentLayer];
   document.getElementById('layerIndicator').style.borderColor = '#' + LAYER_CONFIG[g.currentLayer].accent.toString(16).padStart(6, '0');
   document.getElementById('echoCount').textContent = 'ЭХО: ' + g.echoes.length;

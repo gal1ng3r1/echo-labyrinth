@@ -1,6 +1,6 @@
 import {
   TILE, MAP_W, MAP_H, PLAYER_RADIUS, EYE_HEIGHT,
-  PLAYER_SPEED, RUN_MULT, LIGHT_DIST, LAYER_CONFIG, settings
+  PLAYER_SPEED, RUN_MULT, LIGHT_DIST, STAMINA_DRAIN, STAMINA_RECOVER, LAYER_CONFIG, settings
 } from './config.js';
 import { initAudio, SFX } from './audio.js';
 import {
@@ -132,7 +132,7 @@ export function initGame() {
   controls.yaw = 0;
   controls.pitch = 0;
   game.playerState = {
-    health: 100, maxHealth: 100,
+    health: 100, maxHealth: 100, stamina: 100, maxStamina: 100,
     flashlightOn: true, flashlightCharge: 100,
     inventory: [null, null, null],
     invincible: 0, moving: false, running: false
@@ -321,10 +321,13 @@ export function updateGame(dt) {
   const len = Math.sqrt(moveX*moveX + moveZ*moveZ);
   if (len > 0) { moveX /= len; moveZ /= len; }
   const moving = len > 0;
-  const running = keys['ShiftLeft'] || keys['ShiftRight'];
+  const wantsToRun = keys['ShiftLeft'] || keys['ShiftRight'];
+  const running = wantsToRun && game.playerState.stamina > 0;
   const speed = PLAYER_SPEED * (running ? RUN_MULT : 1) * dt;
   game.playerState.moving = moving;
   game.playerState.running = running;
+  if (running && moving) game.playerState.stamina = Math.max(0, game.playerState.stamina - STAMINA_DRAIN * dt);
+  else game.playerState.stamina = Math.min(game.playerState.maxStamina, game.playerState.stamina + STAMINA_RECOVER * dt);
   updateDoorStates();
 
   if (moving) {
@@ -663,6 +666,7 @@ export function retryGame() {
   controls.yaw = 0; controls.pitch = 0;
   game.playerState.maxHealth = 100;
   game.playerState.health = 100;
+  game.playerState.stamina = game.playerState.maxStamina;
   game.playerState.flashlightCharge = 100;
   game.playerState.flashlightOn = true;
   game.playerState.invincible = 2;
