@@ -9,10 +9,11 @@ import {
 } from './maze.js';
 import {
   clearGameObjects, createExit, createCore, createCrystal, createEnemy,
-  createButton, createDoor, createItem, createCompanion, createEchoMesh
+  createButton, createDoor, createItem, createCompanion, createEchoMesh,
+  createEchoStation, createMemoryFragment
 } from './world.js';
 import { controls, keys, requestLock, releaseLock, clearInputState } from './player.js';
-import { echoFrameAt, findUsableDoor, findDoorPlacement, doorBlocks } from './mechanics.mjs';
+import { echoFrameAt, findUsableDoor, findDoorPlacement, doorBlocks, rebaseEchoFrames, emitNoise } from './mechanics.mjs';
 import {
   showMessage, tickMessage, showDeathScreen, showChoiceScreen,
   showWinScreen, updateHUD, renderMinimap, hideOverlay, showScreen
@@ -30,11 +31,11 @@ export const game = {
   mazes: [],
   wallMeshes: [],
   floorMeshes: [],
-  enemies: [], crystals: [], buttons: [], doors: [], items: [],
+  enemies: [], crystals: [], buttons: [], doors: [], items: [], echoStations: [], memories: [],
   echoes: [], currentEchoRecording: [], particles: [], stones: [],
   exitPos: { x: 0, z: 0 },
   corePos: { x: 0, z: 0 },
-  coreActivated: false,
+  coreActivated: false, memoryCount: 0,
   exitMesh: null, coreMesh: null, companion: null,
   headBobPhase: 0, stepTimer: 0, heartbeatTimer: 0,
   switchFlash: 0, damageFlash: 0,
@@ -94,7 +95,7 @@ export function initGame() {
   game.particles.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mat.dispose(); });
   clearMazeMeshes();
 
-  game.enemies = []; game.crystals = []; game.buttons = []; game.doors = []; game.items = [];
+  game.enemies = []; game.crystals = []; game.buttons = []; game.doors = []; game.items = []; game.echoStations = []; game.memories = [];
   game.echoes = []; game.particles = []; game.stones = []; game.currentEchoRecording = [];
   game.attemptTime = 0;
   game.lastEchoSample = -Infinity;
@@ -103,6 +104,7 @@ export function initGame() {
   const baseMaze = generateMaze();
   game.mazes = createLayerVariants(baseMaze);
   game.currentLayer = 0;
+  game.memoryCount = 0;
   const built = buildMazeMeshes(scene, game.mazes, 0);
   game.wallMeshes = built.wallMeshes;
   game.floorMeshes = built.floorMeshes;
@@ -157,6 +159,12 @@ export function initGame() {
   positions.slice(20, 25).forEach((p, i) => {
     game.items.push(createItem(scene, { x: p.x * TILE + TILE/2, z: p.y * TILE + TILE/2 }, itemTypes[i], itemNames[i], itemColors[i]));
   });
+  positions.slice(25, 27).forEach(p => {
+    game.echoStations.push(createEchoStation(scene, { x: p.x * TILE + TILE/2, z: p.y * TILE + TILE/2 }));
+  });
+  positions.slice(27, 30).forEach((p, i) => {
+    game.memories.push(createMemoryFragment(scene, { x: p.x * TILE + TILE/2, z: p.y * TILE + TILE/2 }, i));
+  });
 
   game.companion = createCompanion(scene);
   game.companion.x = game.playerPos.x;
@@ -182,9 +190,26 @@ function handleInteraction() {
     game.coreActivated = true;
     game.state = 'choice';
     releaseLock();
-    showChoiceScreen();
+    showChoiceScreen(game.memoryCount, game.memories.length || 3);
     game.coreMesh.mat.emissive.setHex(0xffffff);
     game.coreMesh.mat.emissiveIntensity = 3;
+    return;
+  }
+  const station = game.echoStations.find(s => !s.used && dist2D(p.x, p.z, s.mesh.position.x, s.mesh.position.z) < 2.5);
+  if (station) {
+    if (game.currentEchoRecording.length < 10) {
+      showMessage('Сначала пройдите немного, чтобы записать эхо');
+      return;
+    }
+    const frames = rebaseEchoFrames(game.currentEchoRecording);
+    const mesh = createEchoMesh(scene);
+    game.echoes.push({ frames, frameIndex: 0, startTime: game.attemptTime, x: frames[0].x, z: frames[0].z, yaw: frames[0].yaw, layer: frames[0].layer, mesh });
+    game.currentEchoRecording = [];
+    game.lastEchoSample = -Infinity;
+    station.used = true;
+    station.mat.emissiveIntensity = 0.25;
+    station.light.intensity = 0.15;
+    showMessage('Эхо сохранено в точке памяти');
     return;
   }
   const inv = game.playerState.inventory;
@@ -222,6 +247,7 @@ function throwStone() {
   scene.add(mesh);
   const dir = new THREE.Vector3(-Math.sin(controls.yaw), 0.3, -Math.cos(controls.yaw)).normalize();
   game.stones.push({ mesh, mat, vx: dir.x * 12, vz: dir.z * 12, vy: dir.y * 12, life: 1.5 });
+  emitNoise(game.enemies, game.playerPos.x, game.playerPos.z, 8, 2);
   SFX.stone();
 }
 
@@ -287,7 +313,11 @@ export function updateGame(dt) {
     if (canMovePlayer(p.x, newZ)) p.z = newZ;
     game.headBobPhase += dt * (running ? 12 : 8);
     game.stepTimer += dt;
-    if (game.stepTimer > (running ? 0.25 : 0.4)) { game.stepTimer = 0; SFX.step(); }
+    if (game.stepTimer > (running ? 0.25 : 0.4)) {
+      game.stepTimer = 0;
+      SFX.step();
+      emitNoise(game.enemies, p.x, p.z, running ? 11 : 5, running ? 1.5 : 0.8);
+    }
   }
 
   const bobAmount = 0.08 * (settings.headBob / 50);
@@ -318,7 +348,7 @@ export function updateGame(dt) {
     spotLight.visible = false;
   }
   playerLight.position.copy(camera.position);
-  playerLight.intensity = 0.3;
+  playerLight.intensity = 0.6;
 
   if (game.attemptTime - game.lastEchoSample >= 0.1) {
     game.currentEchoRecording.push({ time: game.attemptTime, x: p.x, z: p.z, yaw: controls.yaw, layer: game.currentLayer });
@@ -328,7 +358,7 @@ export function updateGame(dt) {
 
   game.echoes.forEach(echo => {
     if (echo.frames.length) {
-      const f = echoFrameAt(echo.frames, game.attemptTime);
+      const f = echoFrameAt(echo.frames, Math.max(0, game.attemptTime - (echo.startTime || 0)));
       echo.x = f.x; echo.z = f.z; echo.yaw = f.yaw; echo.layer = f.layer;
     }
     if (echo.mesh) {
@@ -420,6 +450,27 @@ export function updateGame(dt) {
       SFX.pickup();
       showMessage('+20 🔦');
       spawnParticles3D(crystal.mesh.position.x, crystal.mesh.position.z, 0x00ffff, 12);
+    }
+  });
+
+  game.echoStations.forEach(station => {
+    station.pulse += dt * 2;
+    station.ring.rotation.z += dt;
+    station.ring.scale.setScalar(1 + Math.sin(station.pulse) * 0.08);
+  });
+
+  game.memories.forEach(memory => {
+    if (memory.collected) return;
+    memory.pulse += dt * 2;
+    memory.obj.rotation.y += dt * 1.4;
+    memory.obj.position.y = 1.1 + Math.sin(memory.pulse) * 0.18;
+    if (dist2D(p.x, p.z, memory.mesh.position.x, memory.mesh.position.z) < 1.5) {
+      memory.collected = true;
+      memory.mesh.visible = false;
+      game.memoryCount++;
+      SFX.pickup();
+      showMessage(`Фрагмент памяти найден: ${game.memoryCount}/${game.memories.length}`);
+      spawnParticles3D(memory.mesh.position.x, memory.mesh.position.z, 0xff44aa, 12);
     }
   });
 
@@ -550,7 +601,7 @@ export function updateGame(dt) {
     if (game.currentEchoRecording.length > 10) {
       const mesh = createEchoMesh(scene);
       game.echoes.push({
-        frames: [...game.currentEchoRecording], frameIndex: 0,
+        frames: rebaseEchoFrames(game.currentEchoRecording), frameIndex: 0, startTime: 0,
         x: game.currentEchoRecording[0].x, z: game.currentEchoRecording[0].z,
         yaw: game.currentEchoRecording[0].yaw, layer: game.currentEchoRecording[0].layer,
         mesh
@@ -588,6 +639,7 @@ export function retryGame() {
   game.playerState.invincible = 2;
   game.currentLayer = 0;
   game.coreActivated = false;
+  game.memoryCount = 0;
   game.moralChoice = 0;
   game.switchFlash = 0;
   game.damageFlash = 0;
@@ -608,6 +660,8 @@ export function retryGame() {
   game.items.filter(i => i.transient).forEach(i => scene.remove(i.mesh));
   game.items = game.items.filter(i => !i.transient);
   game.items.forEach(i => { i.collected = false; i.mesh.visible = true; });
+  game.echoStations.forEach(s => { s.used = false; s.mesh.visible = true; s.mat.emissiveIntensity = 1.5; s.light.intensity = 0.8; });
+  game.memories.forEach(m => { m.collected = false; m.mesh.visible = true; });
   game.playerState.inventory = [null, null, null];
   game.selectedSlot = 0;
   game.state = 'playing';

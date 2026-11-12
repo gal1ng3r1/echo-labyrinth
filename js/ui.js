@@ -32,14 +32,16 @@ export function showDeathScreen(echoCount, attempts) {
   document.getElementById('deathEchoInfo').textContent = `Эхо #${echoCount} сохранено. Всего попыток: ${attempts}`;
 }
 
-export function showChoiceScreen() {
+export function showChoiceScreen(memoryCount = 0, totalMemories = 3) {
   showScreen('choiceScreen');
   const memories = [
     'Вы видите комнату. Маленький ребёнок плачет в углу. Кто-то кричит. Это... ваш дом. Ваш отец. Снова.',
     'Больничная палата. Белый свет. Монитор пищит. Кто-то держит вас за руку, но вы не можете вспомнить — кто.',
     'Дождь. Фары. Визг тормозов. И потом — тишина. Бесконечная тишина.'
   ];
-  document.getElementById('memoryText').textContent = memories[Math.floor(Math.random() * memories.length)];
+  const found = memories.slice(0, Math.min(memoryCount, memories.length));
+  const memory = found.length ? found[found.length - 1] : memories[Math.floor(Math.random() * memories.length)];
+  document.getElementById('memoryText').textContent = `${memory}\n\nФрагментов найдено: ${memoryCount}/${totalMemories}`;
 }
 
 export function showWinScreen(moralChoice, attempts, echoCount, gameTime) {
@@ -58,6 +60,7 @@ export function updateHUD(g) {
   document.getElementById('layerIndicator').textContent = 'СЛОЙ: ' + LAYER_NAMES[g.currentLayer];
   document.getElementById('layerIndicator').style.borderColor = '#' + LAYER_CONFIG[g.currentLayer].accent.toString(16).padStart(6, '0');
   document.getElementById('echoCount').textContent = 'ЭХО: ' + g.echoes.length;
+  document.getElementById('memoryCount').textContent = `ПАМЯТЬ: ${g.memoryCount}/${g.memories.length || 3}`;
   document.getElementById('attemptCount').textContent = 'ПОПЫТКА: ' + g.attempts;
   document.getElementById('objective').textContent = g.coreActivated ? 'ЦЕЛЬ: НАЙДИТЕ ВЫХОД' : 'ЦЕЛЬ: НАЙДИТЕ ЯДРО ВОСПОМИНАНИЯ';
   const selected = g.playerState.inventory[g.selectedSlot];
@@ -82,7 +85,10 @@ export function updateHUD(g) {
 
   const nearCore = !g.coreActivated &&
     Math.sqrt((g.playerPos.x - g.corePos.x)**2 + (g.playerPos.z - g.corePos.z)**2) < 2.5;
-  document.getElementById('interactHint').classList.toggle('show', nearCore);
+  const nearStation = g.echoStations?.some(s => !s.used && Math.hypot(g.playerPos.x - s.mesh.position.x, g.playerPos.z - s.mesh.position.z) < 2.5);
+  const hint = document.getElementById('interactHint');
+  hint.textContent = nearCore ? '[E] ВЗАИМОДЕЙСТВОВАТЬ' : nearStation ? '[E] СОХРАНИТЬ ЭХО' : '';
+  hint.classList.toggle('show', nearCore || nearStation);
 
   document.getElementById('damageOverlay').style.opacity = Math.max(0, g.damageFlash);
 }

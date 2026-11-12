@@ -38,3 +38,19 @@ export function doorBlocks(door, x, z, radius = 0.5) {
   const localZ = s * dx + c * dz;
   return Math.abs(localX) <= door.width / 2 + radius && Math.abs(localZ) <= door.depth / 2 + radius;
 }
+
+export function rebaseEchoFrames(frames) {
+  if (!frames.length) return [];
+  const start = frames[0].time;
+  return frames.map(frame => ({ ...frame, time: frame.time - start }));
+}
+
+export function emitNoise(enemies, x, z, radius, duration = 2) {
+  enemies.forEach(enemy => {
+    if (Math.hypot(enemy.mesh.position.x - x, enemy.mesh.position.z - z) <= radius) {
+      enemy.noiseX = x;
+      enemy.noiseZ = z;
+      enemy.noiseTime = duration;
+    }
+  });
+}

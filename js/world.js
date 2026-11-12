@@ -81,7 +81,7 @@ export function createEnemy(scene, pos, patrolPoints) {
 
   group.position.set(pos.x, 0, pos.z);
   scene.add(group);
-  return { mesh: group, body, eyeMat, light, patrolPoints, patrolIndex: 0, chasing: false, pulse: Math.random() * Math.PI * 2 };
+  return { mesh: group, body, eyeMat, light, patrolPoints, patrolIndex: 0, chasing: false, pulse: Math.random() * Math.PI * 2, noiseX: pos.x, noiseZ: pos.z, noiseTime: 0, stunTime: 0 };
 }
 
 export function createButton(scene, pos, id) {
@@ -130,6 +130,40 @@ export function createCompanion(scene) {
   group.add(light);
   scene.add(group);
   return { mesh: group, light, mat, angle: 0, x: 0, z: 0, visible: true, scared: 0 };
+}
+
+export function createEchoStation(scene, pos) {
+  const group = new THREE.Group();
+  group.userData.gameObj = true;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x0088ff, emissiveIntensity: 1.5 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.9, 0.18, 16), mat);
+  base.position.y = 0.1;
+  group.add(base);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.08, 8, 24), mat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.25;
+  group.add(ring);
+  const light = new THREE.PointLight(0x00ccff, 0.8, 5);
+  light.position.y = 0.5;
+  group.add(light);
+  group.position.set(pos.x, 0, pos.z);
+  scene.add(group);
+  return { mesh: group, base, ring, light, mat, used: false, pulse: Math.random() * Math.PI * 2 };
+}
+
+export function createMemoryFragment(scene, pos, index) {
+  const group = new THREE.Group();
+  group.userData.gameObj = true;
+  const mat = new THREE.MeshStandardMaterial({ color: 0xff88dd, emissive: 0xaa2288, emissiveIntensity: 1.8, transparent: true, opacity: 0.9 });
+  const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), mat);
+  mesh.position.y = 1.1;
+  group.add(mesh);
+  const light = new THREE.PointLight(0xff44aa, 0.7, 4);
+  light.position.y = 1;
+  group.add(light);
+  group.position.set(pos.x, 0, pos.z);
+  scene.add(group);
+  return { mesh: group, obj: mesh, light, mat, index, collected: false, pulse: Math.random() * Math.PI * 2 };
 }
 
 export function createEchoMesh(scene) {
