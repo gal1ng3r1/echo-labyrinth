@@ -645,7 +645,6 @@ export function pauseGame() {
   clearInputState();
   game.state = 'pause';
   releaseLock();
-  document.getElementById('lockOverlay').classList.remove('show');
   showScreen('pauseScreen');
 }
 
@@ -660,7 +659,6 @@ export function quitToMenu() {
   clearInputState();
   game.state = 'start';
   releaseLock();
-  document.getElementById('lockOverlay').classList.remove('show');
 }
 
 export function restartAll() {
