@@ -82,11 +82,17 @@ export function initControls(element, stateGetter, fallbackCallback) {
 
   document.addEventListener('pointerlockchange', () => {
     controls.pointerLocked = (document.pointerLockElement === domElement);
-    if (getState() === 'playing' && !controls.pointerLocked && controls.pointerLockSupported) {
-      document.getElementById('lockOverlay').classList.add('show');
-    } else {
+    if (getState() !== 'playing' || controls.pointerLocked || !controls.pointerLockSupported) {
       document.getElementById('lockOverlay').classList.remove('show');
+      return;
     }
+    // Escape can emit pointerlockchange just before the key handler switches
+    // the game to pause. Defer the prompt and re-check the state so pause UI
+    // never gets covered by the lock overlay.
+    setTimeout(() => {
+      if (getState() === 'playing' && !controls.pointerLocked && controls.pointerLockSupported)
+        document.getElementById('lockOverlay').classList.add('show');
+    }, 0);
   });
 
   document.addEventListener('mousemove', (e) => {
