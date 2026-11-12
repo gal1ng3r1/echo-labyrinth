@@ -588,11 +588,18 @@ export function retryGame() {
   clearInputState();
   game.playerPos.set(TILE * 1.5, EYE_HEIGHT, TILE * 1.5);
   controls.yaw = 0; controls.pitch = 0;
+  game.playerState.maxHealth = 100;
   game.playerState.health = 100;
   game.playerState.flashlightCharge = 100;
   game.playerState.flashlightOn = true;
   game.playerState.invincible = 2;
   game.currentLayer = 0;
+  game.coreActivated = false;
+  game.moralChoice = 0;
+  game.switchFlash = 0;
+  game.damageFlash = 0;
+  game.heartbeatTimer = 0;
+  if (game.coreMesh) game.coreMesh.group.visible = true;
   setLayerVisible(scene, game.wallMeshes, game.floorMeshes, 0, ambientLight);
   game.currentEchoRecording = [];
   game.attemptTime = 0;
