@@ -18,7 +18,7 @@ export const LAYER_CONFIG = {
   2: { wallColor: 0x3a0a1a, floorColor: 0x0a0008, fogColor: 0x100008, fogDensity: 0.1, ambient: 0x441122, accent: 0xaa0044 }
 };
 
-export const settings = {
+const defaultSettings = {
   sensitivity: 5,
   invertY: false,
   quality: 'medium',
@@ -26,3 +26,20 @@ export const settings = {
   headBob: 50,
   volume: 70
 };
+
+export const settings = { ...defaultSettings };
+
+try {
+  if (typeof localStorage !== 'undefined') {
+    const saved = JSON.parse(localStorage.getItem('echo-labyrinth-settings') || '{}');
+    Object.keys(defaultSettings).forEach(key => {
+      if (typeof saved[key] === typeof defaultSettings[key]) settings[key] = saved[key];
+    });
+  }
+} catch { /* corrupted browser storage falls back to defaults */ }
+
+export function saveSettings() {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('echo-labyrinth-settings', JSON.stringify(settings));
+  } catch { /* storage can be disabled in private browsing */ }
+}

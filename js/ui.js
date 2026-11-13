@@ -1,4 +1,4 @@
-import { LAYER_NAMES, LAYER_CONFIG, MAP_W, MAP_H, TILE, settings } from './config.js';
+import { LAYER_NAMES, LAYER_CONFIG, MAP_W, MAP_H, TILE, settings, saveSettings } from './config.js';
 import { updateVolume } from './audio.js';
 
 const SCREENS = ['startScreen', 'settingsScreen', 'pauseScreen', 'deathScreen', 'choiceScreen', 'winScreen'];
@@ -63,7 +63,7 @@ export function updateHUD(g) {
   document.getElementById('echoCount').textContent = 'ЭХО: ' + g.echoes.length;
   document.getElementById('memoryCount').textContent = `ПАМЯТЬ: ${g.memoryCount}/${g.memories.length || 3}`;
   document.getElementById('attemptCount').textContent = 'ПОПЫТКА: ' + g.attempts;
-  document.getElementById('objective').textContent = g.coreActivated ? 'ЦЕЛЬ: НАЙДИТЕ ВЫХОД' : 'ЦЕЛЬ: НАЙДИТЕ ЯДРО ВОСПОМИНАНИЯ';
+  document.getElementById('objective').textContent = g.coreActivated ? 'ЦЕЛЬ: НАЙДИТЕ ВЫХОД' : `ЦЕЛЬ: НАЙДИТЕ ЯДРО · ПАМЯТЬ ${g.memoryCount}/${g.memories.length || 3}`;
   const selected = g.playerState.inventory[g.selectedSlot];
   const actions = { '🔑': 'E: открыть дверь рядом', '🗺️': 'открывает карту слоя', '🪞': 'E: раскрыть угрозы', '🧭': 'E: расстояние до цели', '⚡': 'E: остановить врагов' };
   document.getElementById('itemHint').textContent = selected ? `${selected.name} — ${actions[selected.type]} · G: выбросить` : '1–3: выбрать предмет';
@@ -87,9 +87,10 @@ export function updateHUD(g) {
   const nearCore = !g.coreActivated &&
     Math.sqrt((g.playerPos.x - g.corePos.x)**2 + (g.playerPos.z - g.corePos.z)**2) < 2.5;
   const nearStation = g.echoStations?.some(s => !s.used && Math.hypot(g.playerPos.x - s.mesh.position.x, g.playerPos.z - s.mesh.position.z) < 2.5);
+  const nearDoor = g.doors?.find(d => d.mesh.visible && Math.hypot(g.playerPos.x - d.mesh.position.x, g.playerPos.z - d.mesh.position.z) < 3.5);
   const hint = document.getElementById('interactHint');
-  hint.textContent = nearCore ? '[E] ВЗАИМОДЕЙСТВОВАТЬ' : nearStation ? '[E] СОХРАНИТЬ ЭХО' : '';
-  hint.classList.toggle('show', nearCore || nearStation);
+  hint.textContent = nearCore ? '[E] ВЗАИМОДЕЙСТВОВАТЬ' : nearStation ? '[E] СОХРАНИТЬ ЭХО' : nearDoor ? (g.playerState.inventory.some(i => i?.type === '🔑') ? '[E] ОТКРЫТЬ ДВЕРЬ' : '[E] ДВЕРЬ · НУЖЕН КЛЮЧ') : '';
+  hint.classList.toggle('show', nearCore || nearStation || Boolean(nearDoor));
 
   document.getElementById('damageOverlay').style.opacity = Math.max(0, g.damageFlash);
 }
@@ -139,6 +140,12 @@ export function renderMinimap(g) {
       ctx.beginPath(); ctx.arc((ex/TILE)*scale, (ez/TILE)*scale, 2, 0, Math.PI * 2); ctx.fill();
     }
   });
+  g.echoStations?.forEach(s => {
+    if (!s.used) { ctx.fillStyle = '#00ddff'; ctx.fillRect((s.mesh.position.x / TILE) * scale - 1.5, (s.mesh.position.z / TILE) * scale - 1.5, 3, 3); }
+  });
+  g.memories?.forEach(m => {
+    if (!m.collected) { ctx.fillStyle = '#ff66cc'; ctx.beginPath(); ctx.arc((m.mesh.position.x / TILE) * scale, (m.mesh.position.z / TILE) * scale, 2, 0, Math.PI * 2); ctx.fill(); }
+  });
 }
 
 export function loadSettingsUI() {
@@ -164,6 +171,7 @@ export function bindSettingsUI(camera, renderer) {
         camera.updateProjectionMatrix();
       }
       if (key === 'volume') updateVolume();
+      saveSettings();
     });
   };
   bind('setSensitivity', 'sensitivity', 'valSensitivity');
@@ -171,11 +179,12 @@ export function bindSettingsUI(camera, renderer) {
   bind('setHeadBob', 'headBob', 'valHeadBob');
   bind('setVolume', 'volume', 'valVolume');
 
-  document.getElementById('setInvertY').addEventListener('change', e => { settings.invertY = e.target.checked; });
+  document.getElementById('setInvertY').addEventListener('change', e => { settings.invertY = e.target.checked; saveSettings(); });
   document.getElementById('setQuality').addEventListener('change', e => {
     settings.quality = e.target.value;
     const pr = settings.quality === 'high' ? Math.min(window.devicePixelRatio, 2) : settings.quality === 'medium' ? Math.min(window.devicePixelRatio, 1.5) : 1;
     renderer.setPixelRatio(pr);
     renderer.shadowMap.enabled = settings.quality === 'high';
+    saveSettings();
   });
 }
